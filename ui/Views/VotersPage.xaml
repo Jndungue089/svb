@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="BeneditaUI.Views.VotersPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Eleitores">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="24" RowSpacing="12">
+
+        <!-- Toolbar -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto">
+            <Label
+                Text="Lista de Eleitores"
+                Style="{StaticResource SectionHeader}"
+                VerticalOptions="Center" />
+            <Button
+                Grid.Column="1"
+                Text="↺ Carregar"
+                Command="{Binding LoadCommand}"
+                Style="{StaticResource SecondaryButton}"
+                Margin="0,0,8,0" />
+            <Button
+                Grid.Column="2"
+                Text="🗑 Remover"
+                Command="{Binding DeleteCommand}"
+                Style="{StaticResource DangerButton}" />
+        </Grid>
+
+        <!-- Feedback -->
+        <Label
+            Grid.Row="1"
+            Text="{Binding FeedbackMessage}"
+            TextColor="Gray"
+            FontSize="13" />
+
+        <!-- List -->
+        <CollectionView
+            Grid.Row="2"
+            ItemsSource="{Binding Voters}"
+            SelectedItem="{Binding SelectedVoter}"
+            SelectionMode="Single"
+            EmptyView="Nenhum eleitor cadastrado.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid
+                        Padding="8,6"
+                        ColumnDefinitions="Auto,*,Auto,Auto"
+                        ColumnSpacing="8">
+
+                        <!-- Finger ID badge -->
+                        <Frame
+                            BackgroundColor="{StaticResource Primary}"
+                            CornerRadius="6"
+                            Padding="6,2"
+                            VerticalOptions="Center">
+                            <Label
+                                Text="{Binding FingerId}"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                FontSize="14" />
+                        </Frame>
+
+                        <!-- Name -->
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold" />
+                            <Label
+                                Text="{Binding RegisteredAt, StringFormat='Cadastrado: {0:dd/MM/yyyy}'}"
+                                TextColor="Gray"
+                                FontSize="11" />
+                        </VerticalStackLayout>
+
+                        <!-- Status badge -->
+                        <Frame
+                            Grid.Column="2"
+                            BackgroundColor="{Binding StatusColor}"
+                            CornerRadius="6"
+                            Padding="8,3"
+                            VerticalOptions="Center">
+                            <Label
+                                Text="{Binding StatusLabel}"
+                                TextColor="White"
+                                FontSize="12" />
+                        </Frame>
+
+                        <!-- Voted option -->
+                        <Label
+                            Grid.Column="3"
+                            Text="{Binding Vote.Option, StringFormat='Opção: {0}'}"
+                            TextColor="Gray"
+                            FontSize="12"
+                            VerticalOptions="Center"
+                            IsVisible="{Binding Vote, Converter={StaticResource NullToBoolConverter}}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Register new voter form -->
+        <Frame
+            Grid.Row="3"
+            Style="{StaticResource CardFrame}">
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Cadastrar novo eleitor" Style="{StaticResource SectionHeader}" />
+                <Grid ColumnDefinitions="120,*,Auto" ColumnSpacing="8">
+                    <Entry
+                        Placeholder="ID biométrico"
+                        Text="{Binding NewFingerId}"
+                        Keyboard="Numeric" />
+                    <Entry
+                        Grid.Column="1"
+                        Placeholder="Nome completo"
+                        Text="{Binding NewName}" />
+                    <Button
+                        Grid.Column="2"
+                        Text="✚ Cadastrar"
+                        Command="{Binding RegisterCommand}"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                </Grid>
+            </VerticalStackLayout>
+        </Frame>
+
+    </Grid>
+</ContentPage>

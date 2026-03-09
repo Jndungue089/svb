@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="BeneditaUI.Views.DashboardPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Dashboard">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
+
+            <!-- Status bar -->
+            <Grid ColumnDefinitions="*,Auto">
+                <Label
+                    Text="{Binding StatusMessage}"
+                    TextColor="Gray"
+                    FontSize="13"
+                    VerticalOptions="Center" />
+                <Button
+                    Grid.Column="1"
+                    Text="↺ Atualizar"
+                    Command="{Binding RefreshCommand}"
+                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                    Style="{StaticResource SecondaryButton}" />
+            </Grid>
+
+            <!-- API status indicator -->
+            <Frame
+                BackgroundColor="{Binding ApiOnline, Converter={StaticResource BoolToColorConverter}}"
+                CornerRadius="8"
+                Padding="12,8">
+                <Label
+                    Text="{Binding ApiOnline, Converter={StaticResource BoolToStatusConverter}}"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    HorizontalOptions="Center" />
+            </Frame>
+
+            <!-- KPI cards -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <!-- Total -->
+                <Frame Grid.Column="0" Style="{StaticResource KpiCard}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Total" Style="{StaticResource KpiLabel}" />
+                        <Label Text="{Binding TotalVoters}" Style="{StaticResource KpiValue}" />
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Votaram -->
+                <Frame Grid.Column="1" Style="{StaticResource KpiCard}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Votaram" Style="{StaticResource KpiLabel}" />
+                        <Label Text="{Binding VotersVoted}" Style="{StaticResource KpiValue}" TextColor="SeaGreen" />
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Pendentes -->
+                <Frame Grid.Column="2" Style="{StaticResource KpiCard}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Pendentes" Style="{StaticResource KpiLabel}" />
+                        <Label Text="{Binding VotersPending}" Style="{StaticResource KpiValue}" TextColor="DodgerBlue" />
+                    </VerticalStackLayout>
+                </Frame>
+            </Grid>
+
+            <!-- Loading indicator -->
+            <ActivityIndicator
+                IsRunning="{Binding IsLoading}"
+                IsVisible="{Binding IsLoading}"
+                Color="{StaticResource Primary}"
+                HorizontalOptions="Center" />
+
+            <!-- Results list -->
+            <Label Text="Resultados" Style="{StaticResource SectionHeader}" />
+
+            <CollectionView
+                ItemsSource="{Binding Results}"
+                SelectionMode="None"
+                EmptyView="Nenhum voto registado ainda.">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid
+                            Margin="0,4"
+                            RowDefinitions="Auto,Auto"
+                            ColumnDefinitions="*,Auto"
+                            Padding="0,4">
+                            <Label
+                                Text="{Binding Label}"
+                                FontSize="15"
+                                FontAttributes="Bold" />
+                            <Label
+                                Grid.Row="1"
+                                Text="{Binding Option}"
+                                TextColor="Gray"
+                                FontSize="12" />
+                            <!-- Progress bar -->
+                            <ProgressBar
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Progress="{Binding Percent, Converter={StaticResource PercentToProgressConverter}}"
+                                ProgressColor="{StaticResource Primary}"
+                                Margin="0,4,16,0" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

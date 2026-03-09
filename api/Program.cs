@@ -4,10 +4,17 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Banco de dados (SQLite) ────────────────────────────────────
+// ── Banco de dados (MySQL via Pomelo) ──────────────────────
+var connStr = builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException(
+        "Defina ConnectionStrings:Default no appsettings.json (MySQL).");
+
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("Default")
-        ?? "Data Source=benedita.db"));
+    opt.UseMySql(
+        connStr,
+        ServerVersion.AutoDetect(connStr),
+        mySql => mySql.EnableRetryOnFailure(3)
+    ));
 
 // ── Serviços de negócio ────────────────────────────────────────
 builder.Services.AddScoped<VoteService>();

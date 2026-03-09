@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="BeneditaUI.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Configurações">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="32" Spacing="20" MaximumWidthRequest="600">
+
+            <!-- API URL -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="URL da API" Style="{StaticResource SectionHeader}" />
+                    <Label
+                        Text="Endereço base do servidor BeneditaApi (ex: http://localhost:5000/)"
+                        TextColor="Gray"
+                        FontSize="12" />
+                    <Entry
+                        Text="{Binding ApiUrl}"
+                        Placeholder="http://localhost:5000/"
+                        Keyboard="Url" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button
+                            Text="💾 Guardar"
+                            Command="{Binding SaveUrlCommand}" />
+                        <Button
+                            Grid.Column="1"
+                            Text="🔌 Testar Ligação"
+                            Command="{Binding TestConnCommand}"
+                            IsEnabled="{Binding IsTesting, Converter={StaticResource InverseBoolConverter}}"
+                            Style="{StaticResource SecondaryButton}" />
+                    </Grid>
+
+                    <!-- Ping result -->
+                    <Frame
+                        BackgroundColor="{Binding PingColor}"
+                        CornerRadius="8"
+                        Padding="10,6"
+                        IsVisible="{Binding PingResult, Converter={StaticResource NullToBoolConverter}}">
+                        <Label
+                            Text="{Binding PingResult}"
+                            TextColor="White"
+                            HorizontalOptions="Center"
+                            FontAttributes="Bold" />
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- About -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Sobre" Style="{StaticResource SectionHeader}" />
+                    <Label Text="Benedita — Sistema de Votação Biométrica" FontAttributes="Bold" />
+                    <Label Text="ESP32 + Sensor Biométrico + LCD 16×2" TextColor="Gray" FontSize="13" />
+                    <Label Text="API: C# ASP.NET Core 8 + SQLite" TextColor="Gray" FontSize="13" />
+                    <Label Text="UI: .NET MAUI 8 (Windows)" TextColor="Gray" FontSize="13" />
+                    <Label Text="v1.0.0" TextColor="Gray" FontSize="12" Margin="0,4,0,0" />
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
