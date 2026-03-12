@@ -49,8 +49,8 @@ public static class MauiProgram
         builder.Services.AddTransient<SettingsPage>();
 
         // ── Shell + App ────────────────────────────────────────
-        // AppShell injected into App via DI; App is registered by UseMauiApp<App>()
-        builder.Services.AddSingleton<AppShell>();
+        // App is registered by UseMauiApp<App>()
+        // AppShell is created directly in App constructor after resources are loaded
 
         return builder.Build();
     }
