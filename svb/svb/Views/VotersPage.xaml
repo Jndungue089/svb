@@ -132,7 +132,7 @@
                                             TextColor="{StaticResource Enroll}"
                                             IsVisible="{Binding HasFingerprint}" />
                                         <Label
-                                            Text="{Binding Vote.Party.Acronym, StringFormat='Votou: {0}'}"
+                                            Text="{Binding Vote.Entity.Acronym, StringFormat='Votou: {0}'}"
                                             Style="{StaticResource Caption}"
                                             TextColor="{StaticResource Success}"
                                             IsVisible="{Binding Vote, Converter={StaticResource NullToBoolConverter}}" />

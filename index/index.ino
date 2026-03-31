@@ -9,10 +9,10 @@
  *   ESP32 → API  :  CMD:AUTH:{finger_id}\n
  *   API   → ESP32:  RES:AUTH:OK:{nome}  |  RES:AUTH:DENIED:{motivo}\n
  *
- *   ESP32 → API  :  CMD:PARTIES\n
- *   API   → ESP32:  RES:PARTIES:{n}|{id}:{sigla}|...\n
+ *   ESP32 → API  :  CMD:ENTITIES\n
+ *   API   → ESP32:  RES:ENTITIES:{n}|{id}:{sigla}|...\n
  *
- *   ESP32 → API  :  CMD:VOTE:{finger_id}:{party_id}\n
+ *   ESP32 → API  :  CMD:VOTE:{finger_id}:{entity_id}\n
  *   API   → ESP32:  RES:VOTE:OK  |  RES:VOTE:ERROR:{motivo}\n
  *
  *   API   → ESP32:  CMD:ENROLL:{slot}\n          (inicia enrolamento)
@@ -27,7 +27,7 @@
 #define RX_FINGER   16
 #define TX_FINGER   17
 
-#define BTN_NEXT    21   // navega para próximo partido / confirma enrolamento
+#define BTN_NEXT    21   // navega para próxima entidade
 #define BTN_CONFIRM 22   // confirma voto
 
 #define LED_OK      25
@@ -39,15 +39,15 @@ HardwareSerial fingerSerial(2);
 Adafruit_Fingerprint finger(&fingerSerial);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// ================= PARTIDOS =================
-struct Partido {
+// ================= ENTIDADES =================
+struct Entidade {
   int    id;
   String sigla;
 };
 
-#define MAX_PARTIDOS 16
-Partido partidos[MAX_PARTIDOS];
-int     numPartidos = 0;
+#define MAX_ENTIDADES 16
+Entidade entidades[MAX_ENTIDADES];
+int      numEntidades = 0;
 
 // ================= UTILITÁRIOS =================
 
@@ -64,7 +64,6 @@ void lcdMsg(const char* linha1, const char* linha2 = "") {
   lcd.setCursor(0, 1); lcd.print(linha2);
 }
 
-// Aguarda debounce e retorna true se pressionado
 bool btnPressionado(int pino) {
   if (!digitalRead(pino)) {
     delay(50);
@@ -93,90 +92,56 @@ bool verificarConexao() {
   return enviarComando("CMD:PING") == "RES:PONG";
 }
 
-// ================= PARTIDOS =================
+// ================= ENTIDADES =================
 
-bool carregarPartidos() {
-  String res = enviarComando("CMD:PARTIES");
-  if (!res.startsWith("RES:PARTIES:")) return false;
+bool carregarEntidades() {
+  String res = enviarComando("CMD:ENTITIES");
+  if (!res.startsWith("RES:ENTITIES:")) return false;
 
-  String corpo = res.substring(12); // após "RES:PARTIES:"
+  String corpo = res.substring(13); // após "RES:ENTITIES:"
   int n = corpo.toInt();
   if (n == 0) return false;
 
-  // Formato: "3|1:MPLA|2:UNITA|3:FNLA"
-  numPartidos = 0;
-  int pos = corpo.indexOf('|');
-  while (pos >= 0 && numPartidos < MAX_PARTIDOS) {
-    String entrada = corpo.substring(pos + 1);
-    int next = entrada.indexOf('|');
-    String item = (next >= 0) ? entrada.substring(0, next) : entrada;
-
-    int sep = item.indexOf(':');
-    if (sep > 0) {
-      partidos[numPartidos].id    = item.substring(0, sep).toInt();
-      partidos[numPartidos].sigla = item.substring(sep + 1);
-      partidos[numPartidos].sigla.trim();
-      numPartidos++;
-    }
-
-    if (next < 0) break;
-    corpo = entrada;
-    pos   = next - 1;  // reajusta
-    pos   = corpo.indexOf('|');
-    // Simplificação: iterar a string original
-    // Recomeçar parse a partir da posição correcta
-    break; // o bloco abaixo re-faz o parse correctamente
-  }
-
-  // Parse robusto (reinicia)
-  numPartidos = 0;
-  int start = corpo.indexOf('|');  // 'corpo' ainda é "3|1:MPLA|2:UNITA"
-  // Recarregar a string completa
-  corpo = res.substring(12);
-  // Saltar o número inicial
+  // Parse robusto: "3|1:MPLA|2:UNITA|3:FNLA"
+  numEntidades = 0;
+  corpo = res.substring(13);
   int pipe = corpo.indexOf('|');
   if (pipe < 0) return false;
   String resto = corpo.substring(pipe + 1); // "1:MPLA|2:UNITA|3:FNLA"
 
-  while (resto.length() > 0 && numPartidos < MAX_PARTIDOS) {
+  while (resto.length() > 0 && numEntidades < MAX_ENTIDADES) {
     int nextPipe = resto.indexOf('|');
     String item  = (nextPipe >= 0) ? resto.substring(0, nextPipe) : resto;
 
     int colon = item.indexOf(':');
     if (colon > 0) {
-      partidos[numPartidos].id    = item.substring(0, colon).toInt();
-      partidos[numPartidos].sigla = item.substring(colon + 1);
-      partidos[numPartidos].sigla.trim();
-      numPartidos++;
+      entidades[numEntidades].id    = item.substring(0, colon).toInt();
+      entidades[numEntidades].sigla = item.substring(colon + 1);
+      entidades[numEntidades].sigla.trim();
+      numEntidades++;
     }
 
     if (nextPipe < 0) break;
     resto = resto.substring(nextPipe + 1);
   }
 
-  return numPartidos > 0;
+  return numEntidades > 0;
 }
 
 // ================= DIGITAL =================
 
 int capturarDigital() {
-  if (finger.getImage()       != FINGERPRINT_OK) return -1;
-  if (finger.image2Tz()       != FINGERPRINT_OK) return -1;
-  if (finger.fingerFastSearch()!= FINGERPRINT_OK) return -1;
+  if (finger.getImage()        != FINGERPRINT_OK) return -1;
+  if (finger.image2Tz()        != FINGERPRINT_OK) return -1;
+  if (finger.fingerFastSearch() != FINGERPRINT_OK) return -1;
   return finger.fingerID;
 }
 
 // ================= ENROLAMENTO =================
 
-/**
- * Enrola uma nova impressão digital no slot indicado.
- * Captura a digital duas vezes, cria o modelo e armazena.
- * Envia RES:ENROLL:OK:{slot} ou RES:ENROLL:ERROR:{motivo}.
- */
 void enrolarDigital(int slot) {
   lcdMsg("Enrolamento", "Coloque o dedo");
 
-  // 1.ª captura
   int p = -1;
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
@@ -197,7 +162,6 @@ void enrolarDigital(int slot) {
 
   lcdMsg("Coloque outra", "vez o dedo");
 
-  // 2.ª captura
   p = -1;
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
@@ -225,7 +189,6 @@ void enrolarDigital(int slot) {
     return;
   }
 
-  // Sucesso
   lcdMsg("Digital gravada!", "Slot: " + String(slot));
   piscarLED(LED_OK, 3, 200);
   Serial.println("RES:ENROLL:OK:" + String(slot));
@@ -238,7 +201,7 @@ bool autenticarNoServidor(int fingerID, String& nomeEleitor) {
   String res = enviarComando("CMD:AUTH:" + String(fingerID));
 
   if (res.startsWith("RES:AUTH:OK:")) {
-    nomeEleitor = res.substring(12);  // extrai o nome
+    nomeEleitor = res.substring(12);
     nomeEleitor = nomeEleitor.substring(0, 16);
     return true;
   }
@@ -252,17 +215,17 @@ bool autenticarNoServidor(int fingerID, String& nomeEleitor) {
   return false;
 }
 
-// ================= SELECCIONAR PARTIDO =================
+// ================= SELECCIONAR ENTIDADE =================
 
 /**
- * Mostra partidos no LCD e devolve o ID do partido escolhido.
- * BTN_NEXT   = próximo partido (cicla)
- * BTN_CONFIRM = votar neste partido
- * Retorna -1 se cancelado (timeout 60 s).
+ * Mostra entidades no LCD e devolve o ID da entidade escolhida.
+ * BTN_NEXT    = próxima entidade (cicla)
+ * BTN_CONFIRM = votar nesta entidade
+ * Retorna -1 em caso de timeout (60 s).
  */
-int seleccionarPartido() {
-  if (numPartidos == 0) {
-    lcdMsg("Sem partidos!", "");
+int seleccionarEntidade() {
+  if (numEntidades == 0) {
+    lcdMsg("Sem entidades!", "");
     delay(2000);
     return -1;
   }
@@ -271,18 +234,18 @@ int seleccionarPartido() {
   unsigned long inicio = millis();
 
   while (millis() - inicio < 60000UL) {
-    String linha1 = "< " + partidos[idx].sigla + " >";
+    String linha1 = "< " + entidades[idx].sigla + " >";
     lcdMsg(linha1.c_str(), "OK=Votar N=Prox");
 
-    delay(200); // debounce
+    delay(200);
 
     unsigned long t = millis();
     while (millis() - t < 3000) {
       if (btnPressionado(BTN_CONFIRM)) {
-        return partidos[idx].id;
+        return entidades[idx].id;
       }
       if (btnPressionado(BTN_NEXT)) {
-        idx = (idx + 1) % numPartidos;
+        idx = (idx + 1) % numEntidades;
         break;
       }
       delay(20);
@@ -294,8 +257,8 @@ int seleccionarPartido() {
 
 // ================= VOTAR =================
 
-bool registrarVoto(int fingerID, int partyID) {
-  String cmd = "CMD:VOTE:" + String(fingerID) + ":" + String(partyID);
+bool registrarVoto(int fingerID, int entityID) {
+  String cmd = "CMD:VOTE:" + String(fingerID) + ":" + String(entityID);
   String res = enviarComando(cmd);
   return res.startsWith("RES:VOTE:OK");
 }
@@ -321,7 +284,6 @@ void setup() {
   lcdMsg("Bem-vindo ao SVB", "");
   delay(2000);
 
-  // Aguarda API
   lcdMsg("Aguard. API...", "");
   while (!verificarConexao()) delay(1000);
 
@@ -332,7 +294,6 @@ void setup() {
 // ================= LOOP =================
 
 void loop() {
-  // Verifica se há comandos vindos da API (ex: CMD:ENROLL)
   if (Serial.available()) {
     String cmd = Serial.readStringUntil('\n');
     cmd.trim();
@@ -369,33 +330,31 @@ void loop() {
     return;
   }
 
-  // Mostra nome do eleitor autenticado
   lcdMsg("Bem-vindo!", nomeEleitor.c_str());
   delay(1500);
 
-  // Carrega lista de partidos da API
-  lcdMsg("A carregar...", "partidos");
-  if (!carregarPartidos()) {
-    lcdMsg("Sem partidos", "cadastrados!");
+  // Carrega entidades da API
+  lcdMsg("A carregar...", "entidades");
+  if (!carregarEntidades()) {
+    lcdMsg("Sem entidades", "cadastradas!");
     piscarLED(LED_ERROR, 3, 200);
     delay(2000);
     return;
   }
 
-  // Seleccionar partido
-  int partyID = seleccionarPartido();
+  // Seleccionar entidade
+  int entityID = seleccionarEntidade();
 
-  if (partyID < 0) {
+  if (entityID < 0) {
     lcdMsg("Cancelado", "");
     piscarLED(LED_ERROR, 2, 200);
     delay(2000);
     return;
   }
 
-  // Confirmar voto
   lcdMsg("Registando...", "");
 
-  if (registrarVoto(fingerID, partyID)) {
+  if (registrarVoto(fingerID, entityID)) {
     lcdMsg("Voto registado!", "Obrigado!");
     piscarLED(LED_OK, 3, 300);
   } else {

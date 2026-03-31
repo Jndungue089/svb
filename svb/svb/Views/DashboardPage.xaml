@@ -89,10 +89,10 @@
                 <VerticalStackLayout Spacing="16">
 
                     <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Resultados por Partido" Style="{StaticResource SectionHeader}" />
+                        <Label Text="Resultados por Entidade" Style="{StaticResource SectionHeader}" />
                         <Label
                             Grid.Column="1"
-                            Text="{Binding Results.Count, StringFormat='{0} partido(s)'}"
+                            Text="{Binding Results.Count, StringFormat='{0} entidade(s)'}"
                             Style="{StaticResource Caption}"
                             VerticalOptions="Center" />
                     </Grid>
@@ -107,7 +107,7 @@
                             <DataTemplate>
                                 <VerticalStackLayout Padding="0,10" Spacing="8">
 
-                                    <!-- Party name + count -->
+                                    <!-- Entity name + count -->
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
 
                                         <!-- Acronym badge -->
