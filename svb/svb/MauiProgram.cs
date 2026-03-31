@@ -15,10 +15,8 @@ public static class MauiProgram
             .UseMauiApp<App>()
             .ConfigureFonts(fonts =>
             {
-                // Copy OpenSans fonts from a MAUI template into Resources/Fonts/
-                // or replace with any other font files you prefer.
-                fonts.AddFont("OpenSans-Regular.ttf",    "OpenSansRegular");
-                fonts.AddFont("OpenSans-Semibold.ttf",   "OpenSansSemibold");
+                fonts.AddFont("OpenSans-Regular.ttf",  "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
 #if DEBUG
@@ -30,7 +28,7 @@ public static class MauiProgram
         {
             client.BaseAddress = new Uri(
                 Preferences.Get("ApiBaseUrl", "http://localhost:5000/"));
-            client.Timeout = TimeSpan.FromSeconds(10);
+            client.Timeout = TimeSpan.FromSeconds(40);
         });
 
         // ── Serial ────────────────────────────────────────────
@@ -39,18 +37,16 @@ public static class MauiProgram
         // ── ViewModels ────────────────────────────────────────
         builder.Services.AddTransient<DashboardViewModel>();
         builder.Services.AddTransient<VotersViewModel>();
+        builder.Services.AddTransient<EntitiesViewModel>();
         builder.Services.AddTransient<SerialLogViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
 
         // ── Pages ─────────────────────────────────────────────
         builder.Services.AddTransient<DashboardPage>();
         builder.Services.AddTransient<VotersPage>();
+        builder.Services.AddTransient<EntitiesPage>();
         builder.Services.AddTransient<SerialLogPage>();
         builder.Services.AddTransient<SettingsPage>();
-
-        // ── Shell + App ────────────────────────────────────────
-        // App is registered by UseMauiApp<App>()
-        // AppShell is created directly in App constructor after resources are loaded
 
         return builder.Build();
     }

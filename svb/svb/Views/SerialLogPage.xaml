@@ -3,27 +3,34 @@
     x:Class="BeneditaUI.Views.SerialLogPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="Monitor Serial">
+    Title="Monitor Serial"
+    BackgroundColor="{StaticResource Background}">
 
-    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="10">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="28,20" RowSpacing="14">
 
-        <!-- Connection toolbar -->
-        <Frame Grid.Row="0" Style="{StaticResource CardFrame}" Padding="12">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+        <!-- ── Cabeçalho ─────────────────────────────── -->
+        <VerticalStackLayout Grid.Row="0" Spacing="2">
+            <Label Text="Monitor Serial" Style="{StaticResource PageTitle}" />
+            <Label Text="Comunicação em tempo real com o ESP32" Style="{StaticResource Caption}" />
+        </VerticalStackLayout>
+
+        <!-- ── Barra de controlo ──────────────────── -->
+        <Frame Grid.Row="1" Style="{StaticResource CardFrame}" Padding="16,12">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="10">
 
                 <Picker
                     Grid.Column="0"
-                    Title="Porta"
+                    Title="Porta COM"
                     ItemsSource="{Binding AvailablePorts}"
                     SelectedItem="{Binding SelectedPort}"
-                    WidthRequest="120" />
+                    WidthRequest="130" />
 
                 <Picker
                     Grid.Column="1"
-                    Title="Baud"
+                    Title="Baud Rate"
                     ItemsSource="{Binding BaudRates}"
                     SelectedItem="{Binding SelectedBaud}"
-                    WidthRequest="100" />
+                    WidthRequest="110" />
 
                 <Button
                     Grid.Column="2"
@@ -36,14 +43,15 @@
                     Text="↺"
                     Command="{Binding RefreshPortsCommand}"
                     Style="{StaticResource SecondaryButton}"
-                    ToolTipProperties.Text="Atualizar lista de portas" />
+                    WidthRequest="44"
+                    ToolTipProperties.Text="Atualizar portas" />
 
                 <Label
                     Grid.Column="4"
                     Text="{Binding StatusMessage}"
-                    TextColor="Gray"
+                    Style="{StaticResource Caption}"
                     VerticalOptions="Center"
-                    FontSize="13" />
+                    Margin="8,0" />
 
                 <Button
                     Grid.Column="5"
@@ -60,60 +68,70 @@
             </Grid>
         </Frame>
 
-        <!-- Log view -->
-        <CollectionView
-            x:Name="LogList"
-            Grid.Row="1"
-            ItemsSource="{Binding Log}"
-            SelectionMode="None"
-            BackgroundColor="#1E1E2E">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Grid
-                        ColumnDefinitions="90,60,*"
-                        Padding="8,2"
-                        ColumnSpacing="6">
-                        <Label
-                            Text="{Binding TimeLabel}"
-                            TextColor="#888"
-                            FontFamily="OpenSansRegular"
-                            FontSize="11"
-                            VerticalOptions="Center" />
-                        <Label
-                            Grid.Column="1"
-                            Text="{Binding Prefix}"
-                            TextColor="{Binding Color}"
-                            FontAttributes="Bold"
-                            FontSize="11"
-                            VerticalOptions="Center" />
-                        <Label
-                            Grid.Column="2"
-                            Text="{Binding Text}"
-                            TextColor="{Binding Color}"
-                            FontFamily="OpenSansRegular"
-                            FontSize="12"
-                            VerticalOptions="Center" />
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+        <!-- ── Log viewer (terminal escuro) ─────── -->
+        <Frame
+            Grid.Row="2"
+            Padding="0"
+            CornerRadius="12"
+            HasShadow="True"
+            BorderColor="#1A1A2E"
+            BackgroundColor="#1A1A2E">
+            <CollectionView
+                x:Name="LogList"
+                ItemsSource="{Binding Log}"
+                SelectionMode="None"
+                BackgroundColor="#1A1A2E">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid
+                            ColumnDefinitions="90,60,*"
+                            Padding="12,3"
+                            ColumnSpacing="6">
+                            <Label
+                                Text="{Binding TimeLabel}"
+                                TextColor="#666680"
+                                FontFamily="OpenSansRegular"
+                                FontSize="11"
+                                VerticalOptions="Center" />
+                            <Label
+                                Grid.Column="1"
+                                Text="{Binding Prefix}"
+                                TextColor="{Binding Color}"
+                                FontAttributes="Bold"
+                                FontSize="11"
+                                VerticalOptions="Center" />
+                            <Label
+                                Grid.Column="2"
+                                Text="{Binding Text}"
+                                TextColor="{Binding Color}"
+                                FontFamily="OpenSansRegular"
+                                FontSize="12"
+                                VerticalOptions="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Frame>
 
-        <!-- Manual command input -->
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <Entry
-                Placeholder="Ex: CMD:PING  |  CMD:AUTH:5"
-                Text="{Binding ManualCommand}"
-                ReturnCommand="{Binding SendCommandCommand}"
-                FontFamily="OpenSansRegular"
-                BackgroundColor="#2A2A3E"
-                TextColor="White"
-                PlaceholderColor="#555" />
-            <Button
-                Grid.Column="1"
-                Text="Enviar"
-                Command="{Binding SendCommandCommand}"
-                IsEnabled="{Binding IsOpen}" />
-        </Grid>
+        <!-- ── Envio manual ─────────────────────── -->
+        <Frame Grid.Row="3" Style="{StaticResource CardFrame}" Padding="12">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <Entry
+                    Placeholder="Ex: CMD:PING  |  CMD:AUTH:5  |  CMD:PARTIES"
+                    Text="{Binding ManualCommand}"
+                    ReturnCommand="{Binding SendCommandCommand}"
+                    BackgroundColor="#2A2A3E"
+                    TextColor="White"
+                    PlaceholderColor="#666680"
+                    HeightRequest="40" />
+                <Button
+                    Grid.Column="1"
+                    Text="Enviar"
+                    Command="{Binding SendCommandCommand}"
+                    IsEnabled="{Binding IsOpen}"
+                    WidthRequest="90" />
+            </Grid>
+        </Frame>
 
     </Grid>
 </ContentPage>

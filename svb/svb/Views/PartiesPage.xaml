@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="BeneditaUI.Views.EntitiesPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Entidades"
+    BackgroundColor="{StaticResource Background}">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="28,24" RowSpacing="16">
+
+        <!-- ── Cabeçalho ─────────────────────────────────── -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+            <VerticalStackLayout Spacing="2">
+                <Label Text="Entidades" Style="{StaticResource PageTitle}" />
+                <Label
+                    Text="Gerencie as entidades disponíveis para votação"
+                    Style="{StaticResource Caption}" />
+            </VerticalStackLayout>
+            <Button
+                Grid.Column="1"
+                Text="↺  Atualizar"
+                Command="{Binding LoadCommand}"
+                Style="{StaticResource SecondaryButton}" />
+            <Button
+                Grid.Column="2"
+                Text="🗑  Remover"
+                Command="{Binding DeleteCommand}"
+                Style="{StaticResource DangerButton}" />
+        </Grid>
+
+        <!-- ── Banner de feedback ─────────────────────── -->
+        <Frame
+            Grid.Row="1"
+            Style="{StaticResource FeedbackFrame}"
+            BackgroundColor="{Binding FeedbackColor}"
+            BorderColor="Transparent"
+            IsVisible="{Binding HasFeedback}">
+            <Label
+                Text="{Binding FeedbackMessage}"
+                TextColor="White"
+                FontAttributes="Bold"
+                FontSize="13" />
+        </Frame>
+
+        <!-- ── Layout Master-Detail ───────────────────── -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,400" ColumnSpacing="16">
+
+            <!-- ═══ ESQUERDA — Lista de entidades ════════ -->
+            <Frame Style="{StaticResource CardFrame}" Padding="0">
+                <Grid RowDefinitions="Auto,*">
+
+                    <Grid
+                        Grid.Row="0"
+                        Padding="20,16,20,12"
+                        ColumnDefinitions="*,Auto">
+                        <Label Text="Entidades Cadastradas" Style="{StaticResource SectionHeader}" />
+                        <Label
+                            Grid.Column="1"
+                            Text="{Binding Entities.Count, StringFormat='{0} entidade(s)'}"
+                            Style="{StaticResource Caption}"
+                            VerticalOptions="Center" />
+                    </Grid>
+                    <BoxView Grid.Row="0" VerticalOptions="End" Color="{StaticResource BorderLight}" HeightRequest="1" />
+
+                    <CollectionView
+                        Grid.Row="1"
+                        ItemsSource="{Binding Entities}"
+                        SelectedItem="{Binding SelectedEntity}"
+                        SelectionMode="Single"
+                        EmptyView="Nenhuma entidade cadastrada ainda.">
+
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid
+                                    ColumnDefinitions="4,Auto,*,Auto"
+                                    ColumnSpacing="12"
+                                    Padding="0,0,16,0">
+
+                                    <BoxView
+                                        Grid.Column="0"
+                                        Color="{StaticResource Primary}"
+                                        WidthRequest="4"
+                                        VerticalOptions="Fill" />
+
+                                    <!-- Sigla badge -->
+                                    <Frame
+                                        Grid.Column="1"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        CornerRadius="10"
+                                        Padding="12,8"
+                                        HasShadow="False"
+                                        BorderColor="Transparent"
+                                        VerticalOptions="Center"
+                                        Margin="0,10,0,10">
+                                        <Label
+                                            Text="{Binding Acronym}"
+                                            TextColor="White"
+                                            FontAttributes="Bold"
+                                            FontSize="14"
+                                            HorizontalOptions="Center" />
+                                    </Frame>
+
+                                    <!-- Nome + descrição -->
+                                    <VerticalStackLayout
+                                        Grid.Column="2"
+                                        Spacing="3"
+                                        VerticalOptions="Center"
+                                        Padding="0,10">
+                                        <Label
+                                            Text="{Binding Name}"
+                                            FontSize="15"
+                                            FontAttributes="Bold" />
+                                        <Label
+                                            Text="{Binding Description}"
+                                            Style="{StaticResource Caption}"
+                                            IsVisible="{Binding Description, Converter={StaticResource NullToBoolConverter}}" />
+                                    </VerticalStackLayout>
+
+                                    <!-- Votos badge -->
+                                    <Frame
+                                        Grid.Column="3"
+                                        BackgroundColor="{StaticResource SuccessLight}"
+                                        CornerRadius="8"
+                                        Padding="10,4"
+                                        HasShadow="False"
+                                        BorderColor="Transparent"
+                                        VerticalOptions="Center">
+                                        <VerticalStackLayout Spacing="0" HorizontalOptions="Center">
+                                            <Label
+                                                Text="{Binding VoteCount}"
+                                                TextColor="{StaticResource Success}"
+                                                FontAttributes="Bold"
+                                                FontSize="16"
+                                                HorizontalOptions="Center" />
+                                            <Label
+                                                Text="votos"
+                                                TextColor="{StaticResource Success}"
+                                                FontSize="10"
+                                                HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                    </Frame>
+
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Frame>
+
+            <!-- ═══ DIREITA — Formulário ═══════════════════ -->
+            <VerticalStackLayout Grid.Column="1" Spacing="14">
+
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="16">
+
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Cadastrar Entidade" Style="{StaticResource SectionHeader}" />
+                            <Label
+                                Text="Preencha os dados da entidade candidata"
+                                Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+
+                        <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
+
+                        <!-- Aviso de duplicado -->
+                        <Frame
+                            BackgroundColor="{StaticResource WarningLight}"
+                            BorderColor="{StaticResource Warning}"
+                            CornerRadius="8"
+                            Padding="12,8"
+                            HasShadow="False"
+                            IsVisible="{Binding HasDuplicateWarning}">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <Label
+                                    Text="⚠"
+                                    TextColor="{StaticResource Warning}"
+                                    FontSize="16"
+                                    VerticalOptions="Center" />
+                                <Label
+                                    Grid.Column="1"
+                                    Text="{Binding DuplicateWarning}"
+                                    TextColor="{StaticResource Warning}"
+                                    FontSize="12"
+                                    FontAttributes="Bold"
+                                    VerticalOptions="Center" />
+                            </Grid>
+                        </Frame>
+
+                        <!-- Campo Sigla -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="SIGLA" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Entry
+                                    Placeholder="Ex: MPLA"
+                                    Text="{Binding NewAcronym}"
+                                    HeightRequest="36"
+                                    CharacterSpacing="2" />
+                            </Frame>
+                            <Label
+                                Text="Máx. 8 caracteres — aparece no ecrã do sensor"
+                                Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+
+                        <!-- Campo Nome -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="NOME COMPLETO" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Entry
+                                    Placeholder="Ex: Movimento Popular de Libertação de Angola"
+                                    Text="{Binding NewName}"
+                                    HeightRequest="36" />
+                            </Frame>
+                        </VerticalStackLayout>
+
+                        <!-- Campo Descrição -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="DESCRIÇÃO (opcional)" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Entry
+                                    Placeholder="Notas adicionais..."
+                                    Text="{Binding NewDescription}"
+                                    HeightRequest="36" />
+                            </Frame>
+                        </VerticalStackLayout>
+
+                        <Button
+                            Text="✚  Adicionar Entidade"
+                            Command="{Binding AddCommand}"
+                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+
+                        <ActivityIndicator
+                            IsRunning="{Binding IsLoading}"
+                            IsVisible="{Binding IsLoading}"
+                            Color="{StaticResource Primary}"
+                            HorizontalOptions="Center" />
+
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Info card -->
+                <Frame Style="{StaticResource CardFrameAccent}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label
+                            Text="ℹ  Sobre as Entidades"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource Primary}"
+                            FontSize="13" />
+                        <Label
+                            Text="A sigla é exibida no LCD do sensor biométrico durante a votação. Pode representar partidos, coligações ou candidatos individuais."
+                            TextColor="{StaticResource OnSurfaceMuted}"
+                            FontSize="12" />
+                    </VerticalStackLayout>
+                </Frame>
+
+            </VerticalStackLayout>
+        </Grid>
+
+    </Grid>
+</ContentPage>

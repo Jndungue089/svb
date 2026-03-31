@@ -1,12 +1,23 @@
+using System.Text.Json.Serialization;
+
 namespace BeneditaUI.Models;
 
-/// <summary>Mapeado do endpoint GET /vote/results (Dictionary&lt;string,int&gt;).</summary>
 public class VoteResult
 {
-    public string Option { get; set; } = string.Empty;
-    public int    Count  { get; set; }
+    [JsonPropertyName("entityId")]
+    public int EntityId { get; set; }
 
-    // Percentagem calculada na VM
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("acronym")]
+    public string Acronym { get; set; } = string.Empty;
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+
+    [JsonPropertyName("percent")]
     public double Percent { get; set; }
-    public string Label   => $"{Option}  —  {Count} voto(s)  ({Percent:0.0}%)";
+
+    public string Label => $"{Acronym}  —  {Count} voto(s)  ({Percent:0.0}%)";
 }

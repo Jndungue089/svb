@@ -11,18 +11,18 @@ public class VoteController : ControllerBase
 
     public VoteController(VoteService svc) => _svc = svc;
 
-    /// <summary>Registra o voto de um eleitor.</summary>
+    /// <summary>Registra o voto de um eleitor numa entidade.</summary>
     [HttpPost]
     public async Task<IActionResult> CastVote([FromBody] VoteRequest req)
     {
-        var (success, message) = await _svc.CastVoteAsync(req.FingerId, req.Voto);
+        var (success, message) = await _svc.CastVoteAsync(req.FingerId, req.EntityId);
         if (!success)
             return BadRequest(new { sucesso = false, mensagem = message });
 
         return Ok(new { sucesso = true, mensagem = message });
     }
 
-    /// <summary>Retorna a contagem de votos por opção.</summary>
+    /// <summary>Retorna a contagem de votos por entidade.</summary>
     [HttpGet("results")]
     public async Task<IActionResult> Results()
     {
@@ -31,4 +31,4 @@ public class VoteController : ControllerBase
     }
 }
 
-public record VoteRequest(int FingerId, string Voto);
+public record VoteRequest(int FingerId, int EntityId);

@@ -12,85 +12,201 @@
     <conv:NullToBoolConverter           x:Key="NullToBoolConverter" />
     <conv:PercentToProgressConverter    x:Key="PercentToProgressConverter" />
 
-    <!-- ── Base label ─────────────────────────────────────── -->
+    <!-- ═══════════════════════════════════════════════════════
+         BASE ELEMENTS
+    ════════════════════════════════════════════════════════ -->
+
     <Style TargetType="Label">
         <Setter Property="TextColor"  Value="{StaticResource OnSurface}" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
     </Style>
 
-    <!-- ── Section header ────────────────────────────────── -->
-    <Style x:Key="SectionHeader" TargetType="Label">
-        <Setter Property="FontSize"       Value="18" />
+    <Style TargetType="Entry">
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+        <Setter Property="TextColor"       Value="{StaticResource OnSurface}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource OnSurfaceMuted}" />
+        <Setter Property="HeightRequest"   Value="44" />
+    </Style>
+
+    <Style TargetType="Picker">
+        <Setter Property="TextColor"       Value="{StaticResource OnSurface}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+        <Setter Property="TitleColor"      Value="{StaticResource OnSurfaceMuted}" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TYPOGRAPHY
+    ════════════════════════════════════════════════════════ -->
+
+    <Style x:Key="PageTitle" TargetType="Label">
+        <Setter Property="FontSize"       Value="22" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="TextColor"      Value="{StaticResource OnSurface}" />
     </Style>
 
-    <!-- ── KPI card ──────────────────────────────────────── -->
+    <Style x:Key="SectionHeader" TargetType="Label">
+        <Setter Property="FontSize"       Value="15" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor"      Value="{StaticResource OnSurface}" />
+        <Setter Property="CharacterSpacing" Value="0.3" />
+    </Style>
+
+    <Style x:Key="FieldLabel" TargetType="Label">
+        <Setter Property="FontSize"       Value="12" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor"      Value="{StaticResource OnSurfaceMuted}" />
+        <Setter Property="CharacterSpacing" Value="0.5" />
+    </Style>
+
+    <Style x:Key="Caption" TargetType="Label">
+        <Setter Property="FontSize"  Value="11" />
+        <Setter Property="TextColor" Value="{StaticResource OnSurfaceMuted}" />
+    </Style>
+
+    <!-- ── KPI Cards ─────────────────────────────────────── -->
     <Style x:Key="KpiCard" TargetType="Frame">
         <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-        <Setter Property="CornerRadius"    Value="12" />
-        <Setter Property="Padding"         Value="16,12" />
+        <Setter Property="CornerRadius"    Value="14" />
+        <Setter Property="Padding"         Value="20,16" />
         <Setter Property="HasShadow"       Value="True" />
         <Setter Property="BorderColor"     Value="{StaticResource Border}" />
     </Style>
+
     <Style x:Key="KpiLabel" TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource OnSurfaceMuted}" />
-        <Setter Property="FontSize"  Value="13" />
+        <Setter Property="TextColor"      Value="{StaticResource OnSurfaceMuted}" />
+        <Setter Property="FontSize"       Value="12" />
+        <Setter Property="CharacterSpacing" Value="0.5" />
     </Style>
+
     <Style x:Key="KpiValue" TargetType="Label">
-        <Setter Property="FontSize"       Value="32" />
+        <Setter Property="FontSize"       Value="36" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="TextColor"      Value="{StaticResource Primary}" />
     </Style>
 
-    <!-- ── Generic card ──────────────────────────────────── -->
+    <!-- ── Cards ─────────────────────────────────────────── -->
     <Style x:Key="CardFrame" TargetType="Frame">
         <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-        <Setter Property="CornerRadius"    Value="12" />
-        <Setter Property="Padding"         Value="16" />
+        <Setter Property="CornerRadius"    Value="14" />
+        <Setter Property="Padding"         Value="20" />
         <Setter Property="HasShadow"       Value="True" />
         <Setter Property="BorderColor"     Value="{StaticResource Border}" />
     </Style>
 
-    <!-- ── Buttons ────────────────────────────────────────── -->
+    <Style x:Key="CardFrameWarm" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource SurfaceWarm}" />
+        <Setter Property="CornerRadius"    Value="14" />
+        <Setter Property="Padding"         Value="20" />
+        <Setter Property="HasShadow"       Value="True" />
+        <Setter Property="BorderColor"     Value="{StaticResource CreamDark}" />
+    </Style>
+
+    <Style x:Key="CardFrameAccent" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource PrimaryUltraLight}" />
+        <Setter Property="CornerRadius"    Value="14" />
+        <Setter Property="Padding"         Value="20" />
+        <Setter Property="HasShadow"       Value="False" />
+        <Setter Property="BorderColor"     Value="{StaticResource PrimaryLight}" />
+    </Style>
+
+    <!-- ── Buttons ───────────────────────────────────────── -->
     <Style TargetType="Button">
-        <Setter Property="BackgroundColor"   Value="{StaticResource Primary}" />
-        <Setter Property="TextColor"         Value="White" />
-        <Setter Property="CornerRadius"      Value="8" />
-        <Setter Property="FontAttributes"    Value="Bold" />
-        <Setter Property="HeightRequest"     Value="40" />
-        <Setter Property="Padding"           Value="16,0" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="TextColor"       Value="White" />
+        <Setter Property="CornerRadius"    Value="10" />
+        <Setter Property="FontAttributes"  Value="Bold" />
+        <Setter Property="FontSize"        Value="13" />
+        <Setter Property="HeightRequest"   Value="44" />
+        <Setter Property="Padding"         Value="20,0" />
     </Style>
 
     <Style x:Key="SecondaryButton" TargetType="Button">
-        <Setter Property="BackgroundColor" Value="{StaticResource Background}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
         <Setter Property="TextColor"       Value="{StaticResource Primary}" />
         <Setter Property="BorderColor"     Value="{StaticResource Primary}" />
         <Setter Property="BorderWidth"     Value="1.5" />
-        <Setter Property="CornerRadius"    Value="8" />
-        <Setter Property="HeightRequest"   Value="40" />
+        <Setter Property="CornerRadius"    Value="10" />
+        <Setter Property="FontAttributes"  Value="Bold" />
+        <Setter Property="FontSize"        Value="13" />
+        <Setter Property="HeightRequest"   Value="44" />
         <Setter Property="Padding"         Value="16,0" />
     </Style>
 
     <Style x:Key="DangerButton" TargetType="Button">
         <Setter Property="BackgroundColor" Value="{StaticResource Danger}" />
         <Setter Property="TextColor"       Value="White" />
-        <Setter Property="CornerRadius"    Value="8" />
-        <Setter Property="HeightRequest"   Value="40" />
+        <Setter Property="CornerRadius"    Value="10" />
+        <Setter Property="FontAttributes"  Value="Bold" />
+        <Setter Property="FontSize"        Value="13" />
+        <Setter Property="HeightRequest"   Value="44" />
         <Setter Property="Padding"         Value="16,0" />
     </Style>
 
-    <!-- ── Entry ─────────────────────────────────────────── -->
-    <Style TargetType="Entry">
-        <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-        <Setter Property="TextColor"       Value="{StaticResource OnSurface}" />
-        <Setter Property="HeightRequest"   Value="40" />
+    <Style x:Key="GoldButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+        <Setter Property="TextColor"       Value="White" />
+        <Setter Property="CornerRadius"    Value="10" />
+        <Setter Property="FontAttributes"  Value="Bold" />
+        <Setter Property="FontSize"        Value="13" />
+        <Setter Property="HeightRequest"   Value="44" />
+        <Setter Property="Padding"         Value="20,0" />
     </Style>
 
-    <!-- ── Picker ────────────────────────────────────────── -->
-    <Style TargetType="Picker">
-        <Setter Property="TextColor"       Value="{StaticResource OnSurface}" />
+    <Style x:Key="EnrollButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource Enroll}" />
+        <Setter Property="TextColor"       Value="White" />
+        <Setter Property="CornerRadius"    Value="10" />
+        <Setter Property="FontAttributes"  Value="Bold" />
+        <Setter Property="FontSize"        Value="13" />
+        <Setter Property="HeightRequest"   Value="44" />
+        <Setter Property="Padding"         Value="20,0" />
+    </Style>
+
+    <!-- ── Step indicator ────────────────────────────────── -->
+    <Style x:Key="StepCircleActive" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="CornerRadius"    Value="16" />
+        <Setter Property="Padding"         Value="0" />
+        <Setter Property="WidthRequest"    Value="32" />
+        <Setter Property="HeightRequest"   Value="32" />
+        <Setter Property="HasShadow"       Value="False" />
+        <Setter Property="BorderColor"     Value="{StaticResource Primary}" />
+    </Style>
+
+    <Style x:Key="StepCircleDone" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource Success}" />
+        <Setter Property="CornerRadius"    Value="16" />
+        <Setter Property="Padding"         Value="0" />
+        <Setter Property="WidthRequest"    Value="32" />
+        <Setter Property="HeightRequest"   Value="32" />
+        <Setter Property="HasShadow"       Value="False" />
+        <Setter Property="BorderColor"     Value="{StaticResource Success}" />
+    </Style>
+
+    <Style x:Key="StepCircleIdle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource Border}" />
+        <Setter Property="CornerRadius"    Value="16" />
+        <Setter Property="Padding"         Value="0" />
+        <Setter Property="WidthRequest"    Value="32" />
+        <Setter Property="HeightRequest"   Value="32" />
+        <Setter Property="HasShadow"       Value="False" />
+        <Setter Property="BorderColor"     Value="{StaticResource Border}" />
+    </Style>
+
+    <!-- ── Entry field border wrapper ───────────────────── -->
+    <Style x:Key="FieldFrame" TargetType="Frame">
         <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+        <Setter Property="CornerRadius"    Value="10" />
+        <Setter Property="Padding"         Value="12,4" />
+        <Setter Property="HasShadow"       Value="False" />
+        <Setter Property="BorderColor"     Value="{StaticResource Border}" />
+    </Style>
+
+    <!-- ── Feedback banners ──────────────────────────────── -->
+    <Style x:Key="FeedbackFrame" TargetType="Frame">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding"      Value="14,10" />
+        <Setter Property="HasShadow"    Value="False" />
     </Style>
 
 </ResourceDictionary>

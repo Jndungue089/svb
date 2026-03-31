@@ -11,8 +11,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- Windows packaging -->
-    <ApplicationTitle>Benedita — Sistema de Votação</ApplicationTitle>
-    <ApplicationId>com.benedita.votacao</ApplicationId>
+    <ApplicationTitle>SVB — Sistema de Votação</ApplicationTitle>
+    <ApplicationId>com.svb.votacao</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
 

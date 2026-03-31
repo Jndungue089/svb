@@ -3,64 +3,136 @@
     x:Class="BeneditaUI.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="Configurações">
+    Title="Configurações"
+    BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
-        <VerticalStackLayout Padding="32" Spacing="20" MaximumWidthRequest="600">
+        <VerticalStackLayout Padding="28,24" Spacing="20" MaximumWidthRequest="640">
 
-            <!-- API URL -->
+            <!-- ── Cabeçalho ──────────────────────────── -->
+            <VerticalStackLayout Spacing="2" Margin="0,0,0,4">
+                <Label Text="Configurações" Style="{StaticResource PageTitle}" />
+                <Label Text="Parâmetros de ligação e informações do sistema" Style="{StaticResource Caption}" />
+            </VerticalStackLayout>
+
+            <!-- ── Ligação à API ──────────────────────── -->
             <Frame Style="{StaticResource CardFrame}">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="URL da API" Style="{StaticResource SectionHeader}" />
-                    <Label
-                        Text="Endereço base do servidor BeneditaApi (ex: http://localhost:5000/)"
-                        TextColor="Gray"
-                        FontSize="12" />
-                    <Entry
-                        Text="{Binding ApiUrl}"
-                        Placeholder="http://localhost:5000/"
-                        Keyboard="Url" />
+                <VerticalStackLayout Spacing="16">
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Frame
+                            BackgroundColor="{StaticResource PrimaryUltraLight}"
+                            CornerRadius="10"
+                            Padding="10"
+                            HasShadow="False"
+                            BorderColor="Transparent"
+                            WidthRequest="44"
+                            HeightRequest="44">
+                            <Label
+                                Text="🔗"
+                                FontSize="20"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Frame>
+                        <VerticalStackLayout VerticalOptions="Center" Spacing="1">
+                            <Label Text="Ligação à API" Style="{StaticResource SectionHeader}" />
+                            <Label Text="Endereço do servidor SVB" Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
+
+                    <!-- URL field -->
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="ENDEREÇO DA API" Style="{StaticResource FieldLabel}" />
+                        <Frame Style="{StaticResource FieldFrame}">
+                            <Entry
+                                Text="{Binding ApiUrl}"
+                                Placeholder="http://localhost:5000/"
+                                Keyboard="Url"
+                                HeightRequest="36" />
+                        </Frame>
+                        <Label
+                            Text="Ex: http://192.168.1.10:5000/ para acesso em rede local"
+                            Style="{StaticResource Caption}" />
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                         <Button
-                            Text="💾 Guardar"
+                            Text="💾  Guardar"
                             Command="{Binding SaveUrlCommand}" />
                         <Button
                             Grid.Column="1"
-                            Text="🔌 Testar Ligação"
+                            Text="🔌  Testar Ligação"
                             Command="{Binding TestConnCommand}"
                             IsEnabled="{Binding IsTesting, Converter={StaticResource InverseBoolConverter}}"
                             Style="{StaticResource SecondaryButton}" />
                     </Grid>
 
-                    <!-- Ping result -->
+                    <!-- Resultado do ping -->
                     <Frame
                         BackgroundColor="{Binding PingColor}"
-                        CornerRadius="8"
-                        Padding="10,6"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        HasShadow="False"
+                        BorderColor="Transparent"
                         IsVisible="{Binding PingResult, Converter={StaticResource NullToBoolConverter}}">
                         <Label
                             Text="{Binding PingResult}"
                             TextColor="White"
                             HorizontalOptions="Center"
-                            FontAttributes="Bold" />
+                            FontAttributes="Bold"
+                            FontSize="13" />
                     </Frame>
+
                 </VerticalStackLayout>
             </Frame>
 
-            <!-- About -->
+            <!-- ── Sobre ───────────────────────────────── -->
             <Frame Style="{StaticResource CardFrame}">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="Sobre" Style="{StaticResource SectionHeader}" />
-                    <Label Text="Benedita — Sistema de Votação Biométrica" FontAttributes="Bold" />
-                    <Label Text="ESP32 + Sensor Biométrico + LCD 16×2" TextColor="Gray" FontSize="13" />
-                    <Label Text="API: C# ASP.NET Core 8 + SQLite" TextColor="Gray" FontSize="13" />
-                    <Label Text="UI: .NET MAUI 8 (Windows)" TextColor="Gray" FontSize="13" />
-                    <Label Text="v1.0.0" TextColor="Gray" FontSize="12" Margin="0,4,0,0" />
+                <VerticalStackLayout Spacing="16">
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Frame
+                            BackgroundColor="{StaticResource PrimaryUltraLight}"
+                            CornerRadius="10"
+                            Padding="10"
+                            HasShadow="False"
+                            BorderColor="Transparent"
+                            WidthRequest="44"
+                            HeightRequest="44">
+                            <Label
+                                Text="ℹ"
+                                FontSize="22"
+                                TextColor="{StaticResource Primary}"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Frame>
+                        <VerticalStackLayout VerticalOptions="Center" Spacing="1">
+                            <Label Text="Sobre o Sistema" Style="{StaticResource SectionHeader}" />
+                            <Label Text="SVB — Sistema de Votação Biométrica" Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
+
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+                        <Label Text="Hardware" Style="{StaticResource FieldLabel}" />
+                        <Label Grid.Column="1" Text="ESP32 + Sensor Biométrico + LCD 16×2" FontSize="13" />
+
+                        <Label Grid.Row="1" Text="API" Style="{StaticResource FieldLabel}" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="ASP.NET Core 8 + MySQL" FontSize="13" />
+
+                        <Label Grid.Row="2" Text="Interface" Style="{StaticResource FieldLabel}" />
+                        <Label Grid.Row="2" Grid.Column="1" Text=".NET MAUI 10 (Windows)" FontSize="13" />
+
+                        <Label Grid.Row="3" Text="Versão" Style="{StaticResource FieldLabel}" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="v2.0.0" FontSize="13" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    </Grid>
+
                 </VerticalStackLayout>
             </Frame>
 
         </VerticalStackLayout>
     </ScrollView>
-
 </ContentPage>

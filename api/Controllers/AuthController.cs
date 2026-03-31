@@ -18,7 +18,7 @@ public class AuthController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Auth([FromBody] AuthRequest req)
     {
-        var (authorized, reason) = await _svc.AuthorizeAsync(req.FingerId);
+        var (authorized, reason, _) = await _svc.AuthorizeAsync(req.FingerId);
         return Ok(new { autorizado = authorized, motivo = reason });
     }
 }

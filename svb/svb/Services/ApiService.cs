@@ -4,10 +4,6 @@ using System.Text.Json;
 
 namespace BeneditaUI.Services;
 
-/// <summary>
-/// Cliente HTTP para a API C# (BeneditaApi).
-/// Base URL configurada em Configurações → salva em Preferences.
-/// </summary>
 public class ApiService
 {
     private readonly HttpClient _http;
@@ -23,35 +19,94 @@ public class ApiService
 
     public async Task<List<Voter>?> GetVotersAsync()
     {
-        try
-        {
-            return await _http.GetFromJsonAsync<List<Voter>>("voters", _json);
-        }
+        try { return await _http.GetFromJsonAsync<List<Voter>>("voters", _json); }
         catch { return null; }
     }
 
-    public async Task<(bool Ok, string Message)> RegisterVoterAsync(int fingerId, string name)
+    public async Task<(bool Ok, string Message, Voter? Voter)> RegisterVoterAsync(string name, string bi)
     {
         try
         {
-            var res = await _http.PostAsJsonAsync("voters", new { fingerId, name });
-            if (res.IsSuccessStatusCode) return (true, "Eleitor cadastrado!");
+            var res = await _http.PostAsJsonAsync("voters", new { name, bi });
+            if (res.IsSuccessStatusCode)
+            {
+                var voter = await res.Content.ReadFromJsonAsync<Voter>(_json);
+                return (true, "Eleitor cadastrado!", voter);
+            }
+            var body = await res.Content.ReadAsStringAsync();
+            return (false, $"Erro {(int)res.StatusCode}: {body}", null);
+        }
+        catch (Exception ex) { return (false, ex.Message, null); }
+    }
+
+    public async Task<(bool Ok, string Message, Voter? Voter)> EnrollFingerAsync(int voterId)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(35));
+            var res = await _http.PostAsync($"voters/{voterId}/enroll", null, cts.Token);
+            if (res.IsSuccessStatusCode)
+            {
+                var voter = await res.Content.ReadFromJsonAsync<Voter>(_json);
+                return (true, "Impressão digital registada!", voter);
+            }
+            var body = await res.Content.ReadAsStringAsync();
+            return (false, $"Erro {(int)res.StatusCode}: {body}", null);
+        }
+        catch (OperationCanceledException) { return (false, "Timeout — verifique o sensor.", null); }
+        catch (Exception ex)              { return (false, ex.Message, null); }
+    }
+
+    public async Task<(bool Ok, string Message)> DeleteVoterAsync(int id)
+    {
+        try
+        {
+            var res = await _http.DeleteAsync($"voters/{id}");
+            return res.IsSuccessStatusCode
+                ? (true, "Eleitor removido.")
+                : (false, $"Erro {(int)res.StatusCode}");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    // ── ENTITIES ──────────────────────────────────────────────
+
+    public async Task<List<Entity>?> GetEntitiesAsync()
+    {
+        try { return await _http.GetFromJsonAsync<List<Entity>>("entities", _json); }
+        catch { return null; }
+    }
+
+    public async Task<(bool Ok, string Message)> AddEntityAsync(string name, string acronym, string? description)
+    {
+        try
+        {
+            var res = await _http.PostAsJsonAsync("entities", new { name, acronym, description });
+            if (res.IsSuccessStatusCode) return (true, "Entidade cadastrada!");
             var body = await res.Content.ReadAsStringAsync();
             return (false, $"Erro {(int)res.StatusCode}: {body}");
         }
         catch (Exception ex) { return (false, ex.Message); }
     }
 
-    public async Task<(bool Ok, string Message)> DeleteVoterAsync(int fingerId)
+    public async Task<(bool Ok, string Message)> DeleteEntityAsync(int id)
     {
         try
         {
-            var res = await _http.DeleteAsync($"voters/{fingerId}");
+            var res = await _http.DeleteAsync($"entities/{id}");
             return res.IsSuccessStatusCode
-                ? (true, "Eleitor removido.")
+                ? (true, "Entidade removida.")
                 : (false, $"Erro {(int)res.StatusCode}");
         }
         catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    // ── VOTE RESULTS ──────────────────────────────────────────
+
+    public async Task<List<VoteResult>?> GetResultsAsync()
+    {
+        try { return await _http.GetFromJsonAsync<List<VoteResult>>("vote/results", _json); }
+        catch { return null; }
     }
 
     // ── AUTH (teste manual) ────────────────────────────────────
@@ -67,39 +122,19 @@ public class ApiService
         catch (Exception ex) { return (false, ex.Message); }
     }
 
-    // ── VOTE RESULTS ──────────────────────────────────────────
-
-    public async Task<List<VoteResult>?> GetResultsAsync()
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<Dictionary<string, int>>("vote/results", _json);
-            if (raw is null) return null;
-
-            int total = raw.Values.Sum();
-            return raw.Select(kv => new VoteResult
-            {
-                Option  = kv.Key,
-                Count   = kv.Value,
-                Percent = total == 0 ? 0 : kv.Value * 100.0 / total
-            }).OrderByDescending(r => r.Count).ToList();
-        }
-        catch { return null; }
-    }
-
     // ── PING ──────────────────────────────────────────────────
 
     public async Task<bool> PingAsync()
     {
         try
         {
-            var res = await _http.GetAsync("vote/results");
+            var res = await _http.GetAsync("entities");
             return res.IsSuccessStatusCode;
         }
         catch { return false; }
     }
 
-    // ── Troca de base URL em runtime ──────────────────────────
+    // ── Base URL ──────────────────────────────────────────────
 
     public void SetBaseUrl(string url)
     {

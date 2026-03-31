@@ -3,21 +3,56 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Brand -->
-    <Color x:Key="Primary">#1A73E8</Color>
-    <Color x:Key="PrimaryDark">#1558B0</Color>
-    <Color x:Key="PrimaryLight">#4A90E2</Color>
+    <!-- ═══════════════════════════════════════════════════════
+         SVB — Paleta Creme Cognac
+         Warm, elegant, institutional
+    ════════════════════════════════════════════════════════ -->
 
-    <!-- Semantic -->
-    <Color x:Key="Success">#34A853</Color>
-    <Color x:Key="Warning">#FBBC04</Color>
-    <Color x:Key="Danger">#EA4335</Color>
+    <!-- ── Brand / Primary (Cognac Brown) ─────────────────── -->
+    <Color x:Key="Primary">#6B3A2A</Color>
+    <Color x:Key="PrimaryDark">#4A2319</Color>
+    <Color x:Key="PrimaryLight">#9B6050</Color>
+    <Color x:Key="PrimaryUltraLight">#F5EAE5</Color>
 
-    <!-- Neutrals -->
+    <!-- ── Accent (Warm Gold) ────────────────────────────── -->
+    <Color x:Key="Accent">#C48B2A</Color>
+    <Color x:Key="AccentLight">#F0C06A</Color>
+
+    <!-- ── Semantic ─────────────────────────────────────────── -->
+    <Color x:Key="Success">#2E7D52</Color>
+    <Color x:Key="SuccessLight">#E8F5EE</Color>
+    <Color x:Key="Warning">#C07A10</Color>
+    <Color x:Key="WarningLight">#FFF3DC</Color>
+    <Color x:Key="Danger">#B53B2A</Color>
+    <Color x:Key="DangerLight">#FDECEA</Color>
+    <Color x:Key="Info">#2979A8</Color>
+    <Color x:Key="InfoLight">#E8F2FA</Color>
+    <Color x:Key="Enroll">#C96B1A</Color>
+    <Color x:Key="EnrollLight">#FFF0E5</Color>
+
+    <!-- ── Cream Palette ─────────────────────────────────── -->
+    <Color x:Key="Cream">#FDF6E3</Color>
+    <Color x:Key="CreamMid">#F8EDCC</Color>
+    <Color x:Key="CreamDark">#EFE0B5</Color>
+
+    <!-- ── Surfaces ──────────────────────────────────────── -->
+    <Color x:Key="Background">#FDF6E3</Color>
     <Color x:Key="Surface">#FFFFFF</Color>
-    <Color x:Key="Background">#F1F3F4</Color>
-    <Color x:Key="OnSurface">#202124</Color>
-    <Color x:Key="OnSurfaceMuted">#5F6368</Color>
-    <Color x:Key="Border">#DADCE0</Color>
+    <Color x:Key="SurfaceWarm">#FFFCF5</Color>
+
+    <!-- ── Sidebar ───────────────────────────────────────── -->
+    <Color x:Key="SidebarBg">#3D2419</Color>
+    <Color x:Key="SidebarText">#F5EDD8</Color>
+    <Color x:Key="SidebarMuted">#A89070</Color>
+    <Color x:Key="SidebarActive">#5C3728</Color>
+
+    <!-- ── Text ──────────────────────────────────────────── -->
+    <Color x:Key="OnSurface">#2C1810</Color>
+    <Color x:Key="OnSurfaceMuted">#7A6A5A</Color>
+    <Color x:Key="OnPrimary">#FFFFFF</Color>
+
+    <!-- ── Borders ───────────────────────────────────────── -->
+    <Color x:Key="Border">#E8DDD0</Color>
+    <Color x:Key="BorderLight">#F0EAE0</Color>
 
 </ResourceDictionary>

@@ -3,106 +3,167 @@
     x:Class="BeneditaUI.Views.DashboardPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="Dashboard">
+    Title="Dashboard"
+    BackgroundColor="{StaticResource Background}">
 
     <ScrollView>
-        <VerticalStackLayout Padding="24" Spacing="16">
+        <VerticalStackLayout Padding="28,24" Spacing="20">
 
-            <!-- Status bar -->
-            <Grid ColumnDefinitions="*,Auto">
-                <Label
-                    Text="{Binding StatusMessage}"
-                    TextColor="Gray"
-                    FontSize="13"
-                    VerticalOptions="Center" />
+            <!-- ── Page header ──────────────────────────────── -->
+            <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Painel de Controlo" Style="{StaticResource PageTitle}" />
+                    <Label
+                        Text="{Binding StatusMessage}"
+                        Style="{StaticResource Caption}" />
+                </VerticalStackLayout>
                 <Button
                     Grid.Column="1"
-                    Text="↺ Atualizar"
+                    Text="↺  Atualizar"
                     Command="{Binding RefreshCommand}"
                     IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
                     Style="{StaticResource SecondaryButton}" />
             </Grid>
 
-            <!-- API status indicator -->
+            <!-- ── API status banner ──────────────────────── -->
             <Frame
                 BackgroundColor="{Binding ApiOnline, Converter={StaticResource BoolToColorConverter}}"
-                CornerRadius="8"
-                Padding="12,8">
-                <Label
-                    Text="{Binding ApiOnline, Converter={StaticResource BoolToStatusConverter}}"
-                    TextColor="White"
-                    FontAttributes="Bold"
-                    HorizontalOptions="Center" />
+                CornerRadius="10"
+                Padding="16,10"
+                HasShadow="False"
+                BorderColor="Transparent">
+                <Grid ColumnDefinitions="Auto,*">
+                    <Label
+                        Text="{Binding ApiOnline, Converter={StaticResource BoolToStatusConverter}}"
+                        TextColor="White"
+                        FontAttributes="Bold"
+                        FontSize="13"
+                        VerticalOptions="Center" />
+                    <ActivityIndicator
+                        Grid.Column="1"
+                        IsRunning="{Binding IsLoading}"
+                        IsVisible="{Binding IsLoading}"
+                        Color="White"
+                        HorizontalOptions="End"
+                        WidthRequest="22"
+                        HeightRequest="22" />
+                </Grid>
             </Frame>
 
-            <!-- KPI cards -->
-            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
-                <!-- Total -->
+            <!-- ── KPI cards ────────────────────────────── -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+
                 <Frame Grid.Column="0" Style="{StaticResource KpiCard}">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Total" Style="{StaticResource KpiLabel}" />
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="TOTAL ELEITORES" Style="{StaticResource KpiLabel}" />
                         <Label Text="{Binding TotalVoters}" Style="{StaticResource KpiValue}" />
+                        <BoxView Color="{StaticResource Primary}" HeightRequest="3" CornerRadius="2" />
                     </VerticalStackLayout>
                 </Frame>
-                <!-- Votaram -->
+
                 <Frame Grid.Column="1" Style="{StaticResource KpiCard}">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Votaram" Style="{StaticResource KpiLabel}" />
-                        <Label Text="{Binding VotersVoted}" Style="{StaticResource KpiValue}" TextColor="SeaGreen" />
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="JÁ VOTARAM" Style="{StaticResource KpiLabel}" />
+                        <Label
+                            Text="{Binding VotersVoted}"
+                            Style="{StaticResource KpiValue}"
+                            TextColor="{StaticResource Success}" />
+                        <BoxView Color="{StaticResource Success}" HeightRequest="3" CornerRadius="2" />
                     </VerticalStackLayout>
                 </Frame>
-                <!-- Pendentes -->
+
                 <Frame Grid.Column="2" Style="{StaticResource KpiCard}">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Pendentes" Style="{StaticResource KpiLabel}" />
-                        <Label Text="{Binding VotersPending}" Style="{StaticResource KpiValue}" TextColor="DodgerBlue" />
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="POR VOTAR" Style="{StaticResource KpiLabel}" />
+                        <Label
+                            Text="{Binding VotersPending}"
+                            Style="{StaticResource KpiValue}"
+                            TextColor="{StaticResource Accent}" />
+                        <BoxView Color="{StaticResource Accent}" HeightRequest="3" CornerRadius="2" />
                     </VerticalStackLayout>
                 </Frame>
             </Grid>
 
-            <!-- Loading indicator -->
-            <ActivityIndicator
-                IsRunning="{Binding IsLoading}"
-                IsVisible="{Binding IsLoading}"
-                Color="{StaticResource Primary}"
-                HorizontalOptions="Center" />
+            <!-- ── Results section ───────────────────────── -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="16">
 
-            <!-- Results list -->
-            <Label Text="Resultados" Style="{StaticResource SectionHeader}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Resultados por Partido" Style="{StaticResource SectionHeader}" />
+                        <Label
+                            Grid.Column="1"
+                            Text="{Binding Results.Count, StringFormat='{0} partido(s)'}"
+                            Style="{StaticResource Caption}"
+                            VerticalOptions="Center" />
+                    </Grid>
 
-            <CollectionView
-                ItemsSource="{Binding Results}"
-                SelectionMode="None"
-                EmptyView="Nenhum voto registado ainda.">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid
-                            Margin="0,4"
-                            RowDefinitions="Auto,Auto"
-                            ColumnDefinitions="*,Auto"
-                            Padding="0,4">
-                            <Label
-                                Text="{Binding Label}"
-                                FontSize="15"
-                                FontAttributes="Bold" />
-                            <Label
-                                Grid.Row="1"
-                                Text="{Binding Option}"
-                                TextColor="Gray"
-                                FontSize="12" />
-                            <!-- Progress bar -->
-                            <ProgressBar
-                                Grid.Row="1"
-                                Grid.Column="0"
-                                Progress="{Binding Percent, Converter={StaticResource PercentToProgressConverter}}"
-                                ProgressColor="{StaticResource Primary}"
-                                Margin="0,4,16,0" />
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                    <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
+
+                    <CollectionView
+                        ItemsSource="{Binding Results}"
+                        SelectionMode="None"
+                        EmptyView="Nenhum voto registado ainda.">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <VerticalStackLayout Padding="0,10" Spacing="8">
+
+                                    <!-- Party name + count -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+
+                                        <!-- Acronym badge -->
+                                        <Frame
+                                            BackgroundColor="{StaticResource Primary}"
+                                            CornerRadius="8"
+                                            Padding="10,4"
+                                            HasShadow="False"
+                                            BorderColor="Transparent"
+                                            VerticalOptions="Center">
+                                            <Label
+                                                Text="{Binding Acronym}"
+                                                TextColor="White"
+                                                FontAttributes="Bold"
+                                                FontSize="13" />
+                                        </Frame>
+
+                                        <!-- Full name -->
+                                        <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                            <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="14" />
+                                            <Label Text="{Binding Label}" Style="{StaticResource Caption}" />
+                                        </VerticalStackLayout>
+
+                                        <!-- Percent badge -->
+                                        <Frame
+                                            Grid.Column="2"
+                                            BackgroundColor="{StaticResource SuccessLight}"
+                                            CornerRadius="8"
+                                            Padding="10,4"
+                                            HasShadow="False"
+                                            BorderColor="Transparent"
+                                            VerticalOptions="Center">
+                                            <Label
+                                                Text="{Binding Percent, StringFormat='{0:0.0}%'}"
+                                                TextColor="{StaticResource Success}"
+                                                FontAttributes="Bold"
+                                                FontSize="13" />
+                                        </Frame>
+                                    </Grid>
+
+                                    <!-- Progress bar -->
+                                    <ProgressBar
+                                        Progress="{Binding Percent, Converter={StaticResource PercentToProgressConverter}}"
+                                        ProgressColor="{StaticResource Primary}"
+                                        BackgroundColor="{StaticResource CreamMid}"
+                                        HeightRequest="8" />
+
+                                    <!-- Divider -->
+                                    <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" Margin="0,4,0,0" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
 
         </VerticalStackLayout>
     </ScrollView>
-
 </ContentPage>
