@@ -38,6 +38,7 @@ public static class MauiProgram
         builder.Services.AddTransient<DashboardViewModel>();
         builder.Services.AddTransient<VotersViewModel>();
         builder.Services.AddTransient<EntitiesViewModel>();
+        builder.Services.AddTransient<VotingViewModel>();
         builder.Services.AddTransient<SerialLogViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
 
@@ -45,6 +46,7 @@ public static class MauiProgram
         builder.Services.AddTransient<DashboardPage>();
         builder.Services.AddTransient<VotersPage>();
         builder.Services.AddTransient<EntitiesPage>();
+        builder.Services.AddTransient<VotingPage>();
         builder.Services.AddTransient<SerialLogPage>();
         builder.Services.AddTransient<SettingsPage>();
 

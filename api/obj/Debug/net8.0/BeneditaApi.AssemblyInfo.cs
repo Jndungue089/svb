@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BeneditaApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a9712a0ce2f0f8be53650e6e72ce7bbf94a0e592")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9e7e09fff3c44607040ab7b36da7afa78ff1993b")]
 [assembly: System.Reflection.AssemblyProductAttribute("BeneditaApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BeneditaApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

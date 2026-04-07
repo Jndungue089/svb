@@ -69,6 +69,13 @@
         <ShellContent Title="Entidades" ContentTemplate="{DataTemplate views:EntitiesPage}" />
     </FlyoutItem>
 
+    <FlyoutItem Title="Votação" Route="voting">
+        <FlyoutItem.Icon>
+            <FontImageSource Glyph="🗳" FontFamily="OpenSansRegular" Size="18" />
+        </FlyoutItem.Icon>
+        <ShellContent Title="Votação" ContentTemplate="{DataTemplate views:VotingPage}" />
+    </FlyoutItem>
+
     <FlyoutItem Title="Monitor Serial" Route="serial">
         <FlyoutItem.Icon>
             <FontImageSource Glyph="📡" FontFamily="OpenSansRegular" Size="18" />

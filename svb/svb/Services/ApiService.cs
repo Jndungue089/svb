@@ -101,6 +101,30 @@ public class ApiService
         catch (Exception ex) { return (false, ex.Message); }
     }
 
+    // ── VOTING (iniciado pelo painel) ─────────────────────────
+
+    /// <summary>
+    /// Envia a entidade escolhida para a API e aguarda que o eleitor
+    /// coloque o dedo no sensor (até 38 s).
+    /// </summary>
+    public async Task<(bool Ok, string Message, string VoterName)> InitiateVoteAsync(int entityId)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(38));
+            var res = await _http.PostAsJsonAsync("vote/initiate", new { entityId }, cts.Token);
+            if (res.IsSuccessStatusCode)
+            {
+                var body = await res.Content.ReadFromJsonAsync<VoteInitiateResponse>(_json);
+                return (true, "Voto registado com sucesso!", body?.NomeEleitor ?? "");
+            }
+            var errBody = await res.Content.ReadFromJsonAsync<VoteInitiateResponse>(_json);
+            return (false, errBody?.Mensagem ?? $"Erro {(int)res.StatusCode}", "");
+        }
+        catch (OperationCanceledException) { return (false, "Tempo esgotado — coloque o dedo mais depressa.", ""); }
+        catch (Exception ex)              { return (false, ex.Message, ""); }
+    }
+
     // ── VOTE RESULTS ──────────────────────────────────────────
 
     public async Task<List<VoteResult>?> GetResultsAsync()
@@ -147,3 +171,4 @@ public class ApiService
 }
 
 file record AuthResponse(bool Autorizado, string Motivo);
+file record VoteInitiateResponse(bool Sucesso, string? NomeEleitor, string? Mensagem);

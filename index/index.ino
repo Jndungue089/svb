@@ -18,6 +18,10 @@
  *   API   → ESP32:  CMD:ENROLL:{slot}\n          (inicia enrolamento)
  *   ESP32 → API  :  RES:ENROLL:OK:{slot}\n       (sucesso)
  *   ESP32 → API  :  RES:ENROLL:ERROR:{motivo}\n  (falha)
+ *
+ *   API   → ESP32:  CMD:VOTE_SCAN:{entity_id}\n  (votação iniciada pelo painel)
+ *   ESP32 → API  :  RES:VOTE_SCAN:OK:{nome}\n    (voto registado)
+ *   ESP32 → API  :  RES:VOTE_SCAN:ERROR:{motivo}\n
  */
 
 #include <Adafruit_Fingerprint.h>
@@ -197,7 +201,7 @@ void enrolarDigital(int slot) {
 
 // ================= AUTENTICAÇÃO =================
 
-bool autenticarNoServidor(int fingerID, String& nomeEleitor) {
+bool autenticarNoServidor(int fingerID, String& nomeEleitor, String& motivoNegacao) {
   String res = enviarComando("CMD:AUTH:" + String(fingerID));
 
   if (res.startsWith("RES:AUTH:OK:")) {
@@ -208,9 +212,11 @@ bool autenticarNoServidor(int fingerID, String& nomeEleitor) {
 
   int idx = res.indexOf("DENIED:");
   if (idx >= 0) {
-    String motivo = res.substring(idx + 7);
-    motivo = motivo.substring(0, 16);
-    lcdMsg("Nao autorizado", motivo.c_str());
+    motivoNegacao = res.substring(idx + 7);
+    String lcd2 = motivoNegacao.substring(0, 16);
+    lcdMsg("Nao autorizado", lcd2.c_str());
+  } else {
+    motivoNegacao = "NAO_AUTORIZADO";
   }
   return false;
 }
@@ -263,6 +269,68 @@ bool registrarVoto(int fingerID, int entityID) {
   return res.startsWith("RES:VOTE:OK");
 }
 
+// ================= VOTAÇÃO COM ENTIDADE PRÉ-DEFINIDA (VOTE_SCAN) =================
+
+/**
+ * Chamado quando a API envia CMD:VOTE_SCAN:{entityId}.
+ * Lê a impressão digital, autentica o eleitor e regista o voto.
+ * Responde com RES:VOTE_SCAN:OK:{nomeEleitor} ou RES:VOTE_SCAN:ERROR:{motivo}.
+ */
+void votarComEntidadePredefinida(int entityID) {
+  lcdMsg("Coloque o dedo", "para votar");
+
+  // Aguarda até 30 s para capturar digital
+  unsigned long inicio = millis();
+  int fingerID = -1;
+  while (millis() - inicio < 30000UL) {
+    fingerID = capturarDigital();
+    if (fingerID >= 0) break;
+    delay(100);
+  }
+
+  if (fingerID < 0) {
+    lcdMsg("Tempo esgotado", "");
+    piscarLED(LED_ERROR, 3, 200);
+    Serial.println("RES:VOTE_SCAN:ERROR:TIMEOUT");
+    delay(2000);
+    return;
+  }
+
+  lcdMsg("Verificando...", "");
+
+  String nomeEleitor;
+  String motivoNegacao;
+  if (!autenticarNoServidor(fingerID, nomeEleitor, motivoNegacao)) {
+    piscarLED(LED_ERROR, 3, 200);
+    motivoNegacao.replace(":", "-");
+    motivoNegacao.replace("\n", " ");
+    motivoNegacao.replace("\r", " ");
+    Serial.println("RES:VOTE_SCAN:ERROR:" + motivoNegacao);
+    delay(2000);
+    return;
+  }
+
+  lcdMsg("Registando...", nomeEleitor.c_str());
+
+  if (!registrarVoto(fingerID, entityID)) {
+    piscarLED(LED_ERROR, 3, 200);
+    Serial.println("RES:VOTE_SCAN:ERROR:ERRO_REGISTO");
+    delay(2000);
+    return;
+  }
+
+  lcdMsg("Voto registado!", nomeEleitor.c_str());
+  piscarLED(LED_OK, 3, 300);
+
+  // Sanitiza o nome (remove ':' e '\n') antes de enviar
+  nomeEleitor.replace(":", "-");
+  nomeEleitor.replace("\n", " ");
+  nomeEleitor.replace("\r", " ");
+
+  Serial.println("RES:VOTE_SCAN:OK:" + nomeEleitor);
+  delay(3000);
+}
+
 // ================= SETUP =================
 
 void setup() {
@@ -308,6 +376,16 @@ void loop() {
       return;
     }
 
+    if (cmd.startsWith("CMD:VOTE_SCAN:")) {
+      int entityID = cmd.substring(14).toInt();
+      if (entityID <= 0) {
+        Serial.println("RES:VOTE_SCAN:ERROR:ENTIDADE_INVALIDA");
+      } else {
+        votarComEntidadePredefinida(entityID);
+      }
+      return;
+    }
+
     if (cmd.startsWith("INFO:")) {
       lcdMsg("Novo Eleitor:", cmd.substring(5, 21).c_str());
       delay(3000);
@@ -324,7 +402,8 @@ void loop() {
   lcdMsg("Verificando...", "");
 
   String nomeEleitor;
-  if (!autenticarNoServidor(fingerID, nomeEleitor)) {
+  String motivoNegacao;
+  if (!autenticarNoServidor(fingerID, nomeEleitor, motivoNegacao)) {
     piscarLED(LED_ERROR, 3, 200);
     delay(2000);
     return;
