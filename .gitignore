@@ -1,0 +1,32 @@
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# .NET build output
+**/bin/
+**/obj/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Logs
+*.log
+
+# MAUI generated
+**/*.apk
+**/*.aab
+**/*.msix
+**/*.msixupload
+
+# Tooling caches
+**/*.cache
