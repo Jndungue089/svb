@@ -88,6 +88,85 @@
                 </VerticalStackLayout>
             </Frame>
 
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="16">
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Frame
+                            BackgroundColor="{StaticResource PrimaryUltraLight}"
+                            CornerRadius="10"
+                            Padding="10"
+                            HasShadow="False"
+                            BorderColor="Transparent"
+                            WidthRequest="44"
+                            HeightRequest="44">
+                            <Label
+                                Text="🧩"
+                                FontSize="20"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Frame>
+                        <VerticalStackLayout VerticalOptions="Center" Spacing="1">
+                            <Label Text="Porta COM (controlada pela app)" Style="{StaticResource SectionHeader}" />
+                            <Label Text="A app lê portas locais e manda ao backend conectar" Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
+
+                    <Grid ColumnDefinitions="*,160" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="PORTA COM" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Picker
+                                    Title="Selecione a porta"
+                                    ItemsSource="{Binding AvailablePorts}"
+                                    SelectedItem="{Binding SelectedPort}" />
+                            </Frame>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <Label Text="BAUD RATE" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Entry
+                                    Text="{Binding BaudRateInput}"
+                                    Keyboard="Numeric"
+                                    Placeholder="115200" />
+                            </Frame>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="10">
+                        <Button
+                            Text="Atualizar"
+                            Command="{Binding LoadSerialCommand}"
+                            IsEnabled="{Binding IsSerialBusy, Converter={StaticResource InverseBoolConverter}}"
+                            Style="{StaticResource SecondaryButton}" />
+                        <Button
+                            Grid.Column="1"
+                            Text="Conectar"
+                            Command="{Binding ConnectSerialCommand}"
+                            IsEnabled="{Binding CanConnectSerial}" />
+                        <Button
+                            Grid.Column="2"
+                            Text="Desconectar"
+                            Command="{Binding DisconnectSerialCommand}"
+                            IsEnabled="{Binding CanDisconnectSerial}"
+                            Style="{StaticResource DangerButton}" />
+                    </Grid>
+
+                    <Frame
+                        Style="{StaticResource FeedbackFrame}"
+                        BackgroundColor="{Binding SerialStatusColor}"
+                        BorderColor="Transparent">
+                        <Label
+                            Text="{Binding SerialStatus}"
+                            TextColor="White"
+                            FontAttributes="Bold" />
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
             <!-- ── Sobre ───────────────────────────────── -->
             <Frame Style="{StaticResource CardFrame}">
                 <VerticalStackLayout Spacing="16">

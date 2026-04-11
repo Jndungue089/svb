@@ -12,130 +12,339 @@ public partial class VotingViewModel : ObservableObject
 
     public VotingViewModel(ApiService api) => _api = api;
 
-    // ── Entidades disponíveis ─────────────────────────────────
     [ObservableProperty]
-    private ObservableCollection<Entity> _entities = new();
+    private ObservableCollection<VotingPartyOption> _partyOptions = new();
 
     [ObservableProperty]
-    private Entity? _selectedEntity;
+    private VotingPartyOption? _selectedParty;
 
-    // ── Estado da votação ─────────────────────────────────────
     [ObservableProperty]
     private bool _isLoading;
 
     [ObservableProperty]
-    private bool _isVoting;
-
-    /// <summary>Resultado visível após a votação (sucesso ou erro).</summary>
-    [ObservableProperty]
-    private bool _hasResult;
+    private bool _isScanning;
 
     [ObservableProperty]
-    private bool _voteSuccess;
+    private string _biInput = string.Empty;
 
     [ObservableProperty]
-    private string _resultTitle = string.Empty;
+    private string _voterCardInput = string.Empty;
 
     [ObservableProperty]
-    private string _resultMessage = string.Empty;
+    private bool _identificationPassed;
 
     [ObservableProperty]
-    private string _resultVoterName = string.Empty;
+    private string _identificationMessage = "Informe BI e cartão para iniciar.";
 
-    // ── Computed properties ───────────────────────────────────
+    [ObservableProperty]
+    private Color _identificationMessageColor = Colors.Gray;
 
-    /// <summary>True quando uma entidade está seleccionada e não está a votar nem a mostrar resultado.</summary>
-    public bool CanVote =>
-        SelectedEntity is not null && !IsVoting && !HasResult;
+    [ObservableProperty]
+    private bool _isAwaitingConfirmation;
 
-    /// <summary>True quando nenhuma entidade está seleccionada.</summary>
-    public bool IsEntitySelected => SelectedEntity is not null;
+    [ObservableProperty]
+    private bool _hasCompletedSession;
 
-    partial void OnSelectedEntityChanged(Entity? value)
+    [ObservableProperty]
+    private string _sessionResultTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _sessionResultMessage = string.Empty;
+
+    [ObservableProperty]
+    private Color _sessionResultColor = Colors.Gray;
+
+    [ObservableProperty]
+    private string _scannedVoterName = string.Empty;
+
+    [ObservableProperty]
+    private string _partyInfoMessage = string.Empty;
+
+    private int _scannedFingerId;
+
+    public bool HasSelectedParty => SelectedParty is not null;
+
+    public bool CanSubmitIdentification =>
+        !IsLoading &&
+        !IsScanning &&
+        !IdentificationPassed &&
+        !string.IsNullOrWhiteSpace(BiInput) &&
+        !string.IsNullOrWhiteSpace(VoterCardInput);
+
+    public bool CanSelectParty =>
+        IdentificationPassed &&
+        !IsLoading &&
+        !IsScanning &&
+        !IsAwaitingConfirmation &&
+        !HasCompletedSession;
+
+    public bool CanStartBiometric => CanSelectParty && SelectedParty is not null;
+
+    public bool CanConfirmOrCancel =>
+        IsAwaitingConfirmation &&
+        !IsLoading &&
+        !IsScanning &&
+        _scannedFingerId > 0;
+
+    partial void OnSelectedPartyChanged(VotingPartyOption? value)
     {
-        OnPropertyChanged(nameof(CanVote));
-        OnPropertyChanged(nameof(IsEntitySelected));
-        // Reset resultado ao mudar de entidade
-        if (HasResult) ResetVote();
+        UpdatePartyVisualState();
+        RaiseComputed();
     }
 
-    partial void OnIsVotingChanged(bool value)  => OnPropertyChanged(nameof(CanVote));
-    partial void OnHasResultChanged(bool value) => OnPropertyChanged(nameof(CanVote));
+    partial void OnBiInputChanged(string value) => RaiseComputed();
+    partial void OnVoterCardInputChanged(string value) => RaiseComputed();
+    partial void OnIsLoadingChanged(bool value) => RaiseComputed();
+    partial void OnIsScanningChanged(bool value) => RaiseComputed();
+    partial void OnIdentificationPassedChanged(bool value) => RaiseComputed();
+    partial void OnIsAwaitingConfirmationChanged(bool value) => RaiseComputed();
+    partial void OnHasCompletedSessionChanged(bool value) => RaiseComputed();
 
-    // ── Comandos ──────────────────────────────────────────────
+    private void RaiseComputed()
+    {
+        OnPropertyChanged(nameof(CanSubmitIdentification));
+        OnPropertyChanged(nameof(CanSelectParty));
+        OnPropertyChanged(nameof(CanStartBiometric));
+        OnPropertyChanged(nameof(CanConfirmOrCancel));
+        OnPropertyChanged(nameof(HasSelectedParty));
+    }
 
     [RelayCommand]
     public async Task LoadAsync()
     {
         IsLoading = true;
-        var entities = await _api.GetEntitiesAsync();
-        Entities.Clear();
-        if (entities is not null)
-            foreach (var e in entities)
-                Entities.Add(e);
-        IsLoading   = false;
-        SelectedEntity = null;
-        ResetVote();
+
+        var entities = await _api.GetEntitiesAsync() ?? new List<Entity>();
+        var results = await _api.GetResultsAsync() ?? new List<VoteResult>();
+
+        var topThree = entities.Take(3).ToList();
+
+        PartyOptions.Clear();
+        foreach (var entity in topThree)
+        {
+            var count = results.FirstOrDefault(r => r.EntityId == entity.Id)?.Count ?? 0;
+            PartyOptions.Add(new VotingPartyOption
+            {
+                EntityId = entity.Id,
+                Name = entity.Name,
+                Acronym = entity.Acronym,
+                VoteCount = count
+            });
+        }
+
+        PartyInfoMessage = PartyOptions.Count switch
+        {
+            0 => "Nenhum partido configurado. Cadastre 3 entidades para votação.",
+            < 3 => $"Foram carregados {PartyOptions.Count} partido(s). O ideal são 3.",
+            _ => "3 partidos disponíveis para seleção por toque ou por botões."
+        };
+
+        ResetSessionState(clearInputs: true, keepIdentificationMessage: false);
+        IsLoading = false;
     }
 
-    /// <summary>
-    /// Inicia a sessão de votação para a entidade seleccionada.
-    /// Bloqueia a UI enquanto aguarda que o eleitor coloque o dedo.
-    /// </summary>
     [RelayCommand]
-    public async Task StartVoteAsync()
+    public async Task SubmitIdentificationAsync()
     {
-        if (SelectedEntity is null) return;
+        if (!CanSubmitIdentification)
+            return;
 
-        IsVoting   = true;
-        HasResult  = false;
+        IsLoading = true;
 
-        var (ok, msg, voterName) = await _api.InitiateVoteAsync(SelectedEntity.Id);
-
-        IsVoting = false;
-        HasResult = true;
-        VoteSuccess = ok;
-
-        if (ok)
+        var voters = await _api.GetVotersAsync();
+        if (voters is null)
         {
-            ResultTitle     = "Voto Registado!";
-            ResultVoterName = voterName;
-            ResultMessage   = $"O voto de «{voterName}» na entidade «{SelectedEntity.Acronym}» foi registado com sucesso.";
+            IsLoading = false;
+            IdentificationMessage = "Não foi possível validar o BI na API.";
+            IdentificationMessageColor = Colors.Crimson;
+            return;
         }
-        else
+
+        var voter = voters.FirstOrDefault(v =>
+            string.Equals(v.BI.Trim(), BiInput.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (voter is null)
         {
-            ResultTitle     = "Votação Falhada";
-            ResultVoterName = string.Empty;
-            ResultMessage   = TranslateError(msg);
+            IsLoading = false;
+            IdentificationMessage = "BI não encontrado no cadastro.";
+            IdentificationMessageColor = Colors.Crimson;
+            return;
+        }
+
+        if (!voter.CanVote)
+        {
+            IsLoading = false;
+            IdentificationMessage = "Este eleitor já votou e não pode votar novamente.";
+            IdentificationMessageColor = Colors.Crimson;
+            return;
+        }
+
+        IdentificationPassed = true;
+        IdentificationMessage = "Identificação validada. Agora escolha o partido.";
+        IdentificationMessageColor = Colors.SeaGreen;
+        IsLoading = false;
+    }
+
+    [RelayCommand]
+    public void SelectParty(VotingPartyOption? option)
+    {
+        if (option is null || !CanSelectParty || option.IsDisabled)
+            return;
+
+        SelectedParty = option;
+    }
+
+    [RelayCommand]
+    public async Task StartBiometricAsync()
+    {
+        if (!CanStartBiometric || SelectedParty is null)
+            return;
+
+        IsScanning = true;
+        SessionResultTitle = "Leitura biométrica";
+        SessionResultMessage = "Aguardando leitura do sensor...";
+        SessionResultColor = Colors.Orange;
+
+        var (ok, message, fingerId, voterName) = await _api.ScanVoterAsync(BiInput.Trim(), VoterCardInput.Trim());
+
+        IsScanning = false;
+        if (!ok)
+        {
+            SessionResultTitle = "Falha na biometria";
+            SessionResultMessage = message;
+            SessionResultColor = Colors.Crimson;
+            return;
+        }
+
+        _scannedFingerId = fingerId;
+        ScannedVoterName = voterName;
+        IsAwaitingConfirmation = true;
+        SessionResultTitle = "Confirmar voto";
+        SessionResultMessage = $"Biometria de {voterName} validada. Clique em Confirmar para registrar +1 em {SelectedParty.Acronym} ou em Cancelar para abortar.";
+        SessionResultColor = Colors.DodgerBlue;
+    }
+
+    [RelayCommand]
+    public async Task ConfirmVoteAsync()
+    {
+        if (!CanConfirmOrCancel || SelectedParty is null)
+            return;
+
+        IsLoading = true;
+        var (ok, message) = await _api.ConfirmVoteAsync(_scannedFingerId, SelectedParty.EntityId);
+        IsLoading = false;
+
+        if (!ok)
+        {
+            SessionResultTitle = "Falha ao confirmar";
+            SessionResultMessage = message;
+            SessionResultColor = Colors.Crimson;
+            return;
+        }
+
+        IsAwaitingConfirmation = false;
+        HasCompletedSession = true;
+        SessionResultTitle = "Voto confirmado";
+        SessionResultMessage = $"{message} Foi adicionado +1 ao partido {SelectedParty.Acronym}.";
+        SessionResultColor = Colors.SeaGreen;
+
+        await RefreshVoteCountsAsync();
+    }
+
+    [RelayCommand]
+    public async Task CancelVoteAsync()
+    {
+        if (!CanConfirmOrCancel)
+            return;
+
+        IsLoading = true;
+        var (ok, message) = await _api.CancelVoteAsync();
+        IsLoading = false;
+
+        IsAwaitingConfirmation = false;
+        HasCompletedSession = true;
+        SessionResultTitle = "Voto cancelado";
+        SessionResultMessage = ok
+            ? "Voto cancelado. Nenhum partido recebeu +1 voto."
+            : $"Voto cancelado localmente. Aviso da API: {message}";
+        SessionResultColor = Colors.DarkOrange;
+    }
+
+    [RelayCommand]
+    public void NewSession()
+    {
+        ResetSessionState(clearInputs: true, keepIdentificationMessage: false);
+    }
+
+    private void ResetSessionState(bool clearInputs, bool keepIdentificationMessage)
+    {
+        SelectedParty = null;
+        _scannedFingerId = 0;
+        ScannedVoterName = string.Empty;
+        IsAwaitingConfirmation = false;
+        HasCompletedSession = false;
+
+        SessionResultTitle = string.Empty;
+        SessionResultMessage = string.Empty;
+        SessionResultColor = Colors.Gray;
+
+        if (clearInputs)
+        {
+            BiInput = string.Empty;
+            VoterCardInput = string.Empty;
+        }
+
+        IdentificationPassed = false;
+
+        if (!keepIdentificationMessage)
+        {
+            IdentificationMessage = "Informe BI e cartão para iniciar.";
+            IdentificationMessageColor = Colors.Gray;
+        }
+
+        UpdatePartyVisualState();
+    }
+
+    private async Task RefreshVoteCountsAsync()
+    {
+        var results = await _api.GetResultsAsync();
+        if (results is null)
+            return;
+
+        foreach (var option in PartyOptions)
+        {
+            option.VoteCount = results.FirstOrDefault(r => r.EntityId == option.EntityId)?.Count ?? option.VoteCount;
         }
     }
 
-    private static string TranslateError(string msg) => msg switch
+    private void UpdatePartyVisualState()
     {
-        var m when m.Contains("Voto ja realizado", StringComparison.OrdinalIgnoreCase)
-                || m.Contains("Voto ja registado", StringComparison.OrdinalIgnoreCase)
-                || m.Contains("ja votou",           StringComparison.OrdinalIgnoreCase)
-            => "Este eleitor já exerceu o seu voto. Cada eleitor só pode votar uma vez.",
-        var m when m.Contains("TIMEOUT",            StringComparison.OrdinalIgnoreCase)
-            => "Tempo esgotado — o eleitor não colocou o dedo a tempo.",
-        var m when m.Contains("PORTA_SERIAL_FECHADA", StringComparison.OrdinalIgnoreCase)
-            => "Sensor não ligado — verifique a ligação USB.",
-        var m when m.Contains("NAO_AUTORIZADO",     StringComparison.OrdinalIgnoreCase)
-                || m.Contains("nao cadastrado",      StringComparison.OrdinalIgnoreCase)
-            => "Impressão digital não reconhecida ou eleitor não cadastrado.",
-        var m when m.Contains("ERRO_REGISTO",       StringComparison.OrdinalIgnoreCase)
-            => "Falha ao registar o voto na base de dados.",
-        _ => msg.Replace("_", " ")
-    };
+        foreach (var option in PartyOptions)
+        {
+            var isSelected = SelectedParty?.EntityId == option.EntityId;
+            option.IsSelected = isSelected;
 
-    /// <summary>Limpa o resultado e permite votar novamente.</summary>
-    [RelayCommand]
-    public void ResetVote()
-    {
-        HasResult       = false;
-        VoteSuccess     = false;
-        ResultTitle     = string.Empty;
-        ResultMessage   = string.Empty;
-        ResultVoterName = string.Empty;
+            // Após selecionar, apenas o partido escolhido fica ativo.
+            option.IsDisabled = SelectedParty is not null && !isSelected;
+
+            if (isSelected)
+            {
+                option.CardColor = Color.FromArgb("#F5EAE5");
+                option.BorderColor = Color.FromArgb("#6B3A2A");
+                option.TitleColor = Color.FromArgb("#6B3A2A");
+            }
+            else if (option.IsDisabled)
+            {
+                option.CardColor = Color.FromArgb("#F3F3F3");
+                option.BorderColor = Color.FromArgb("#D1D1D1");
+                option.TitleColor = Color.FromArgb("#A3A3A3");
+            }
+            else
+            {
+                option.CardColor = Color.FromArgb("#FFFFFF");
+                option.BorderColor = Color.FromArgb("#E8DDD0");
+                option.TitleColor = Color.FromArgb("#2C1810");
+            }
+        }
     }
 }

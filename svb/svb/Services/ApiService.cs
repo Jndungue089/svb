@@ -125,6 +125,49 @@ public class ApiService
         catch (Exception ex)              { return (false, ex.Message, ""); }
     }
 
+    public async Task<(bool Ok, string Message, int FingerId, string VoterName)> ScanVoterAsync(string bi, string voterCard)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(38));
+            var res = await _http.PostAsJsonAsync("vote/scan", new { bi, voterCard }, cts.Token);
+            var body = await res.Content.ReadFromJsonAsync<VoteScanResponse>(_json);
+
+            if (res.IsSuccessStatusCode && body is not null)
+                return (true, body.Mensagem ?? "Biometria validada.", body.FingerId, body.NomeEleitor ?? string.Empty);
+
+            return (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}", 0, string.Empty);
+        }
+        catch (OperationCanceledException) { return (false, "Tempo esgotado na leitura biométrica.", 0, string.Empty); }
+        catch (Exception ex) { return (false, ex.Message, 0, string.Empty); }
+    }
+
+    public async Task<(bool Ok, string Message)> ConfirmVoteAsync(int fingerId, int entityId)
+    {
+        try
+        {
+            var res = await _http.PostAsJsonAsync("vote/confirm", new { fingerId, entityId });
+            var body = await res.Content.ReadFromJsonAsync<VoteActionResponse>(_json);
+            return res.IsSuccessStatusCode
+                ? (true, body?.Mensagem ?? "Voto confirmado.")
+                : (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    public async Task<(bool Ok, string Message)> CancelVoteAsync()
+    {
+        try
+        {
+            var res = await _http.PostAsync("vote/cancel", null);
+            var body = await res.Content.ReadFromJsonAsync<VoteActionResponse>(_json);
+            return res.IsSuccessStatusCode
+                ? (true, body?.Mensagem ?? "Voto cancelado.")
+                : (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
     // ── VOTE RESULTS ──────────────────────────────────────────
 
     public async Task<List<VoteResult>?> GetResultsAsync()
@@ -158,6 +201,46 @@ public class ApiService
         catch { return false; }
     }
 
+    // ── SERIAL BACKEND ──────────────────────────────────────
+
+    public async Task<List<string>?> GetSerialPortsAsync()
+    {
+        try { return await _http.GetFromJsonAsync<List<string>>("serial/ports", _json); }
+        catch { return null; }
+    }
+
+    public async Task<SerialStatusDto?> GetSerialStatusAsync()
+    {
+        try { return await _http.GetFromJsonAsync<SerialStatusDto>("serial/status", _json); }
+        catch { return null; }
+    }
+
+    public async Task<(bool Ok, string Message)> ConnectSerialAsync(string portName, int baudRate)
+    {
+        try
+        {
+            var res = await _http.PostAsJsonAsync("serial/connect", new { portName, baudRate });
+            var body = await res.Content.ReadFromJsonAsync<VoteActionResponse>(_json);
+            return res.IsSuccessStatusCode
+                ? (true, body?.Mensagem ?? "A conectar porta serial.")
+                : (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    public async Task<(bool Ok, string Message)> DisconnectSerialAsync()
+    {
+        try
+        {
+            var res = await _http.PostAsync("serial/disconnect", null);
+            var body = await res.Content.ReadFromJsonAsync<VoteActionResponse>(_json);
+            return res.IsSuccessStatusCode
+                ? (true, body?.Mensagem ?? "Porta serial desconectada.")
+                : (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
     // ── Base URL ──────────────────────────────────────────────
 
     public void SetBaseUrl(string url)
@@ -172,3 +255,6 @@ public class ApiService
 
 file record AuthResponse(bool Autorizado, string Motivo);
 file record VoteInitiateResponse(bool Sucesso, string? NomeEleitor, string? Mensagem);
+file record VoteScanResponse(bool Sucesso, int FingerId, string? NomeEleitor, string? Mensagem);
+file record VoteActionResponse(bool Sucesso, string? Mensagem);
+public record SerialStatusDto(bool IsConnected, string? ActivePort, string? DesiredPort, int BaudRate, string LastError);

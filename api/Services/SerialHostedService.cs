@@ -1,43 +1,29 @@
 using System.IO.Ports;
 using BeneditaApi.Data;
-using BeneditaApi.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace BeneditaApi.Services;
 
 /// <summary>
 /// Background service que mantém a comunicação serial com o ESP32.
-///
-/// Protocolo (ASCII, terminado em '\n'):
-///   ESP32 → API  :  CMD:AUTH:{finger_id}
-///   API   → ESP32:  RES:AUTH:OK:{nome}  |  RES:AUTH:DENIED:{motivo}
-///
-///   ESP32 → API  :  CMD:VOTE:{finger_id}:{entity_id}
-///   API   → ESP32:  RES:VOTE:OK  |  RES:VOTE:ERROR:{motivo}
-///
-///   ESP32 → API  :  CMD:ENTITIES
-///   API   → ESP32:  RES:ENTITIES:{n}|{id}:{sigla}|...
-///
-///   ESP32 → API  :  CMD:PING
-///   API   → ESP32:  RES:PONG
-///
-///   API   → ESP32:  CMD:ENROLL:{slot}
-///   ESP32 → API  :  RES:ENROLL:OK:{slot}  |  RES:ENROLL:ERROR:{motivo}
-///
-///   API   → ESP32:  CMD:VOTE_SCAN:{entity_id}     (votação iniciada pelo admin)
-///   ESP32 → API  :  RES:VOTE_SCAN:OK:{nome}        (voto registado, nome do eleitor)
-///   ESP32 → API  :  RES:VOTE_SCAN:ERROR:{motivo}
+/// Agora a porta é configurável em runtime via API.
 /// </summary>
 public class SerialHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IConfiguration       _config;
+    private readonly IConfiguration _config;
     private readonly ILogger<SerialHostedService> _logger;
 
+    private readonly object _stateLock = new();
     private SerialPort? _port;
+    private string? _desiredPortName;
+    private int _desiredBaudRate;
+    private bool _reconnectRequested;
+    private string _lastError = string.Empty;
 
     private TaskCompletionSource<string>? _enrollTcs;
     private TaskCompletionSource<string>? _voteScanTcs;
+    private TaskCompletionSource<string>? _identifyScanTcs;
 
     public SerialHostedService(
         IServiceScopeFactory scopeFactory,
@@ -45,78 +31,174 @@ public class SerialHostedService : BackgroundService
         ILogger<SerialHostedService> logger)
     {
         _scopeFactory = scopeFactory;
-        _config       = config;
-        _logger       = logger;
+        _config = config;
+        _logger = logger;
+
+        _desiredPortName = _config["Serial:Port"];
+        _desiredBaudRate = int.TryParse(_config["Serial:BaudRate"], out var baud) ? baud : 115200;
+        _reconnectRequested = !string.IsNullOrWhiteSpace(_desiredPortName);
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Lifecycle
-    // ──────────────────────────────────────────────────────────
+    public string[] GetAvailablePorts() =>
+        SerialPort.GetPortNames().OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public SerialStatus GetStatus()
     {
-        var portName = _config["Serial:Port"]    ?? "COM3";
-        var baudRate = int.Parse(_config["Serial:BaudRate"] ?? "115200");
-
-        _logger.LogInformation("Serial: abrindo {Port} @ {Baud}", portName, baudRate);
-
-        while (!stoppingToken.IsCancellationRequested)
+        lock (_stateLock)
         {
-            try
-            {
-                using (_port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
-                {
-                    ReadTimeout  = 200,
-                    WriteTimeout = 500,
-                    NewLine      = "\n"
-                })
-                {
-                    _port.Open();
-                    _logger.LogInformation("Serial: porta aberta");
-
-                    while (!stoppingToken.IsCancellationRequested)
-                    {
-                        string line;
-                        try { line = _port.ReadLine().Trim(); }
-                        catch (TimeoutException) { continue; }
-
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-
-                        _logger.LogDebug("Serial RX: {Line}", line);
-
-                        // Respostas de operações assíncronas vindas do ESP32
-                        if (line.StartsWith("RES:ENROLL:"))
-                        {
-                            HandleEnrollResponse(line);
-                            continue;
-                        }
-
-                        if (line.StartsWith("RES:VOTE_SCAN:"))
-                        {
-                            HandleVoteScanResponse(line);
-                            continue;
-                        }
-
-                        var response = await ProcessCommandAsync(line);
-                        if (response is not null)
-                        {
-                            _port.WriteLine(response);
-                            _logger.LogDebug("Serial TX: {Response}", response);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
-            {
-                _logger.LogWarning(ex, "Serial: erro na porta — tentando novamente em 5 s");
-                await Task.Delay(5_000, stoppingToken);
-            }
+            return new SerialStatus(
+                IsConnected: _port is { IsOpen: true },
+                ActivePort: _port?.IsOpen == true ? _port.PortName : null,
+                DesiredPort: _desiredPortName,
+                BaudRate: _desiredBaudRate,
+                LastError: _lastError);
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Processamento de comandos recebidos do ESP32
-    // ──────────────────────────────────────────────────────────
+    public (bool Ok, string Message) Connect(string portName, int baudRate)
+    {
+        if (string.IsNullOrWhiteSpace(portName))
+            return (false, "Porta COM inválida.");
+
+        if (baudRate <= 0)
+            return (false, "Baud rate inválido.");
+
+        lock (_stateLock)
+        {
+            _desiredPortName = portName.Trim();
+            _desiredBaudRate = baudRate;
+            _reconnectRequested = true;
+            _lastError = string.Empty;
+            ClosePortUnsafe();
+        }
+
+        return (true, $"A ligar em {_desiredPortName} @ {_desiredBaudRate}...");
+    }
+
+    public void Disconnect()
+    {
+        lock (_stateLock)
+        {
+            _desiredPortName = null;
+            _reconnectRequested = false;
+            ClosePortUnsafe();
+        }
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            TryEnsureConnection();
+
+            SerialPort? activePort;
+            lock (_stateLock)
+                activePort = _port is { IsOpen: true } ? _port : null;
+
+            if (activePort is null)
+            {
+                await Task.Delay(250, stoppingToken);
+                continue;
+            }
+
+            try
+            {
+                var line = activePort.ReadLine().Trim();
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                _logger.LogDebug("Serial RX: {Line}", line);
+
+                if (line.StartsWith("RES:ENROLL:"))
+                {
+                    HandleEnrollResponse(line);
+                    continue;
+                }
+
+                if (line.StartsWith("RES:VOTE_SCAN:"))
+                {
+                    HandleVoteScanResponse(line);
+                    continue;
+                }
+
+                if (line.StartsWith("RES:IDENTIFY_SCAN:"))
+                {
+                    HandleIdentifyScanResponse(line);
+                    continue;
+                }
+
+                var response = await ProcessCommandAsync(line);
+                if (response is not null)
+                    Send(response);
+            }
+            catch (TimeoutException)
+            {
+                // Timeout esperado para polling.
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "Serial: erro durante leitura — reconectando.");
+                lock (_stateLock)
+                {
+                    _lastError = ex.Message;
+                    _reconnectRequested = true;
+                    ClosePortUnsafe();
+                }
+            }
+        }
+
+        lock (_stateLock)
+            ClosePortUnsafe();
+    }
+
+    private void TryEnsureConnection()
+    {
+        string? desiredPort;
+        int desiredBaud;
+        bool shouldReconnect;
+
+        lock (_stateLock)
+        {
+            desiredPort = _desiredPortName;
+            desiredBaud = _desiredBaudRate;
+            shouldReconnect = _reconnectRequested;
+
+            if (!shouldReconnect && _port is { IsOpen: true })
+                return;
+
+            if (string.IsNullOrWhiteSpace(desiredPort))
+                return;
+        }
+
+        try
+        {
+            var newPort = new SerialPort(desiredPort, desiredBaud, Parity.None, 8, StopBits.One)
+            {
+                ReadTimeout = 200,
+                WriteTimeout = 500,
+                NewLine = "\n"
+            };
+
+            newPort.Open();
+
+            lock (_stateLock)
+            {
+                ClosePortUnsafe();
+                _port = newPort;
+                _reconnectRequested = false;
+                _lastError = string.Empty;
+            }
+
+            _logger.LogInformation("Serial: porta aberta em {Port} @ {Baud}", desiredPort, desiredBaud);
+        }
+        catch (Exception ex)
+        {
+            lock (_stateLock)
+                _lastError = ex.Message;
+
+            _logger.LogWarning(ex, "Serial: falha ao abrir {Port} @ {Baud}", desiredPort, desiredBaud);
+        }
+    }
 
     private async Task<string?> ProcessCommandAsync(string line)
     {
@@ -132,7 +214,6 @@ public class SerialHostedService : BackgroundService
 
         var command = parts[1];
 
-        // ── AUTH ──────────────────────────────────────────────
         if (command == "AUTH")
         {
             if (parts.Length < 3 || !int.TryParse(parts[2], out int fingerId))
@@ -147,7 +228,6 @@ public class SerialHostedService : BackgroundService
                 : $"RES:AUTH:DENIED:{Sanitize(reason)}";
         }
 
-        // ── VOTE ──────────────────────────────────────────────
         if (command == "VOTE")
         {
             if (parts.Length < 4)
@@ -168,7 +248,6 @@ public class SerialHostedService : BackgroundService
                 : $"RES:VOTE:ERROR:{Sanitize(message)}";
         }
 
-        // ── ENTITIES ──────────────────────────────────────────
         if (command == "ENTITIES")
         {
             using var scope = _scopeFactory.CreateScope();
@@ -185,10 +264,6 @@ public class SerialHostedService : BackgroundService
         return $"RES:ERROR:COMANDO_DESCONHECIDO:{command}";
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Enrolamento biométrico
-    // ──────────────────────────────────────────────────────────
-
     private void HandleEnrollResponse(string line)
     {
         var after = line["RES:ENROLL:".Length..];
@@ -197,12 +272,37 @@ public class SerialHostedService : BackgroundService
             _enrollTcs?.TrySetResult(line);
             _enrollTcs = null;
         }
+
         _logger.LogInformation("Enrolamento: {Line}", line);
+    }
+
+    private void HandleVoteScanResponse(string line)
+    {
+        var after = line["RES:VOTE_SCAN:".Length..];
+        if (after.StartsWith("OK:") || after.StartsWith("ERROR:"))
+        {
+            _voteScanTcs?.TrySetResult(line);
+            _voteScanTcs = null;
+        }
+
+        _logger.LogInformation("VoteScan: {Line}", line);
+    }
+
+    private void HandleIdentifyScanResponse(string line)
+    {
+        var after = line["RES:IDENTIFY_SCAN:".Length..];
+        if (after.StartsWith("OK:") || after.StartsWith("ERROR:"))
+        {
+            _identifyScanTcs?.TrySetResult(line);
+            _identifyScanTcs = null;
+        }
+
+        _logger.LogInformation("IdentifyScan: {Line}", line);
     }
 
     public async Task<string> SendEnrollAsync(int slot, CancellationToken ct = default)
     {
-        if (_port is not { IsOpen: true })
+        if (!IsConnected())
             return "RES:ENROLL:ERROR:PORTA_SERIAL_FECHADA";
 
         _enrollTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -222,29 +322,9 @@ public class SerialHostedService : BackgroundService
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Votação iniciada pelo MAUI (VOTE_SCAN)
-    // ──────────────────────────────────────────────────────────
-
-    private void HandleVoteScanResponse(string line)
-    {
-        var after = line["RES:VOTE_SCAN:".Length..];
-        if (after.StartsWith("OK:") || after.StartsWith("ERROR:"))
-        {
-            _voteScanTcs?.TrySetResult(line);
-            _voteScanTcs = null;
-        }
-        _logger.LogInformation("VoteScan: {Line}", line);
-    }
-
-    /// <summary>
-    /// Envia CMD:VOTE_SCAN:{entityId} ao ESP32 e aguarda o resultado (até 35 s).
-    /// O ESP32 lê o dedo, autentica e regista o voto automaticamente.
-    /// Retorna RES:VOTE_SCAN:OK:{nomeEleitor} ou RES:VOTE_SCAN:ERROR:{motivo}.
-    /// </summary>
     public async Task<string> SendVoteScanAsync(int entityId, CancellationToken ct = default)
     {
-        if (_port is not { IsOpen: true })
+        if (!IsConnected())
             return "RES:VOTE_SCAN:ERROR:PORTA_SERIAL_FECHADA";
 
         _voteScanTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -264,19 +344,66 @@ public class SerialHostedService : BackgroundService
         }
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Helpers
-    // ──────────────────────────────────────────────────────────
+    public async Task<string> SendIdentifyScanAsync(CancellationToken ct = default)
+    {
+        if (!IsConnected())
+            return "RES:IDENTIFY_SCAN:ERROR:PORTA_SERIAL_FECHADA";
+
+        _identifyScanTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Send("CMD:IDENTIFY_SCAN");
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(35));
+
+        try
+        {
+            return await _identifyScanTcs.Task.WaitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _identifyScanTcs = null;
+            return "RES:IDENTIFY_SCAN:ERROR:TIMEOUT";
+        }
+    }
+
+    public void Send(string message)
+    {
+        lock (_stateLock)
+        {
+            if (_port is not { IsOpen: true })
+                return;
+
+            _port.WriteLine(message);
+            _logger.LogDebug("Serial TX: {Message}", message);
+        }
+    }
+
+    private bool IsConnected()
+    {
+        lock (_stateLock)
+            return _port is { IsOpen: true };
+    }
 
     private static string Sanitize(string s) =>
         s.Replace('\n', ' ').Replace('\r', ' ').Replace(':', '-');
 
-    public void Send(string message)
+    private void ClosePortUnsafe()
     {
-        if (_port is { IsOpen: true })
+        try
         {
-            _port.WriteLine(message);
-            _logger.LogDebug("Serial TX (manual): {Message}", message);
+            if (_port is { IsOpen: true })
+                _port.Close();
+            _port?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Serial: erro ao fechar porta.");
+        }
+        finally
+        {
+            _port = null;
         }
     }
 }
+
+public record SerialStatus(bool IsConnected, string? ActivePort, string? DesiredPort, int BaudRate, string LastError);

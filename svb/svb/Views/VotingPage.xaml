@@ -3,320 +3,189 @@
     x:Class="BeneditaUI.Views.VotingPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:model="clr-namespace:BeneditaUI.Models"
+    x:Name="VotingRoot"
     Title="Votação"
     BackgroundColor="{StaticResource Background}">
 
-    <Grid RowDefinitions="Auto,*" Padding="28,24" RowSpacing="16">
+    <ScrollView>
+        <VerticalStackLayout Padding="28,24" Spacing="16" MaximumWidthRequest="980">
 
-        <!-- ── Cabeçalho ──────────────────────────────────────── -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-            <VerticalStackLayout Spacing="2">
-                <Label Text="Votação Biométrica" Style="{StaticResource PageTitle}" />
-                <Label
-                    Text="Seleccione a entidade e aguarde que o eleitor coloque o dedo no sensor"
-                    Style="{StaticResource Caption}" />
-            </VerticalStackLayout>
-            <Button
-                Grid.Column="1"
-                Text="↺  Atualizar"
-                Command="{Binding LoadCommand}"
-                Style="{StaticResource SecondaryButton}"
-                IsEnabled="{Binding IsVoting, Converter={StaticResource InverseBoolConverter}}" />
-        </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Votação" Style="{StaticResource PageTitle}" />
+                    <Label
+                        Text="Identificação, escolha do partido, biometria e confirmação/cancelamento"
+                        Style="{StaticResource Caption}" />
+                </VerticalStackLayout>
+                <Button
+                    Grid.Column="1"
+                    Text="Atualizar"
+                    Command="{Binding LoadCommand}"
+                    Style="{StaticResource SecondaryButton}" />
+            </Grid>
 
-        <!-- ── Corpo Master-Detail ────────────────────────────── -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,380" ColumnSpacing="16">
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Fase 1: Identificação" Style="{StaticResource SectionHeader}" />
 
-            <!-- ═══ ESQUERDA — Grelha de entidades ═══════════════ -->
-            <Frame Style="{StaticResource CardFrame}" Padding="0">
-                <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Nº do BI" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Entry
+                                    Text="{Binding BiInput}"
+                                    Placeholder="Ex.: 005487329LA042"
+                                    IsEnabled="{Binding IdentificationPassed, Converter={StaticResource InverseBoolConverter}}" />
+                            </Frame>
+                        </VerticalStackLayout>
 
-                    <Grid
-                        Grid.Row="0"
-                        Padding="20,16,20,12"
-                        ColumnDefinitions="*,Auto">
-                        <Label Text="Escolha a Entidade" Style="{StaticResource SectionHeader}" />
-                        <Label
-                            Grid.Column="1"
-                            Text="{Binding Entities.Count, StringFormat='{0} entidade(s)'}"
-                            Style="{StaticResource Caption}"
-                            VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <Label Text="Cartão do eleitor (processo/QR ITEL)" Style="{StaticResource FieldLabel}" />
+                            <Frame Style="{StaticResource FieldFrame}">
+                                <Entry
+                                    Text="{Binding VoterCardInput}"
+                                    Placeholder="Nº processo ou código QR"
+                                    IsEnabled="{Binding IdentificationPassed, Converter={StaticResource InverseBoolConverter}}" />
+                            </Frame>
+                        </VerticalStackLayout>
                     </Grid>
-                    <BoxView Grid.Row="0" VerticalOptions="End" Color="{StaticResource BorderLight}" HeightRequest="1" />
 
-                    <!-- Loading spinner enquanto carrega entidades -->
-                    <ActivityIndicator
-                        Grid.Row="1"
-                        IsRunning="{Binding IsLoading}"
-                        IsVisible="{Binding IsLoading}"
-                        Color="{StaticResource Primary}"
-                        HorizontalOptions="Center"
-                        VerticalOptions="Center" />
+                    <Button
+                        Text="Validar Identificação"
+                        Command="{Binding SubmitIdentificationCommand}"
+                        IsEnabled="{Binding CanSubmitIdentification}" />
 
-                    <!-- Grelha de cards de entidade -->
+                    <Frame
+                        Style="{StaticResource FeedbackFrame}"
+                        BackgroundColor="{Binding IdentificationMessageColor}"
+                        BorderColor="Transparent">
+                        <Label
+                            Text="{Binding IdentificationMessage}"
+                            TextColor="White"
+                            FontAttributes="Bold" />
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Fase 2: Escolha do Partido" Style="{StaticResource SectionHeader}" />
+                    <Label Text="{Binding PartyInfoMessage}" Style="{StaticResource Caption}" />
+
                     <CollectionView
-                        Grid.Row="1"
-                        ItemsSource="{Binding Entities}"
-                        SelectedItem="{Binding SelectedEntity}"
-                        SelectionMode="Single"
-                        IsVisible="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                        EmptyView="Nenhuma entidade cadastrada. Adicione entidades no separador Entidades."
-                        Margin="12">
-
+                        ItemsSource="{Binding PartyOptions}"
+                        SelectionMode="None"
+                        EmptyView="Nenhum partido disponível.">
                         <CollectionView.ItemsLayout>
                             <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
                         </CollectionView.ItemsLayout>
-
                         <CollectionView.ItemTemplate>
-                            <DataTemplate>
+                            <DataTemplate x:DataType="model:VotingPartyOption">
                                 <Frame
-                                    BackgroundColor="{StaticResource Surface}"
-                                    CornerRadius="16"
-                                    Padding="12,16"
+                                    CornerRadius="14"
+                                    Padding="12"
                                     HasShadow="True"
-                                    BorderColor="{StaticResource BorderLight}">
-                                    <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
-
-                                        <!-- Sigla em destaque -->
-                                        <Frame
-                                            BackgroundColor="{StaticResource Primary}"
-                                            CornerRadius="12"
-                                            Padding="10,8"
-                                            HasShadow="False"
-                                            BorderColor="Transparent"
-                                            HorizontalOptions="Center">
-                                            <Label
-                                                Text="{Binding Acronym}"
-                                                TextColor="White"
-                                                FontAttributes="Bold"
-                                                FontSize="18"
-                                                HorizontalOptions="Center" />
-                                        </Frame>
-
-                                        <!-- Nome -->
+                                    BackgroundColor="{Binding CardColor}"
+                                    BorderColor="{Binding BorderColor}">
+                                    <VerticalStackLayout Spacing="8">
                                         <Label
-                                            Text="{Binding Name}"
-                                            FontSize="12"
+                                            Text="{Binding Acronym}"
+                                            FontSize="24"
                                             FontAttributes="Bold"
                                             HorizontalOptions="Center"
+                                            TextColor="{Binding TitleColor}" />
+                                        <Label
+                                            Text="{Binding Name}"
                                             HorizontalTextAlignment="Center"
-                                            MaxLines="2"
-                                            LineBreakMode="WordWrap" />
-
+                                            FontSize="12"
+                                            MaxLines="2" />
+                                        <Label
+                                            Text="{Binding VoteCount, StringFormat='Votos: {0}'}"
+                                            HorizontalOptions="Center"
+                                            FontAttributes="Bold" />
+                                        <Button
+                                            Text="Selecionar"
+                                            Command="{Binding Source={x:Reference VotingRoot}, Path=BindingContext.SelectPartyCommand}"
+                                            CommandParameter="{Binding .}"
+                                            IsEnabled="{Binding IsDisabled, Converter={StaticResource InverseBoolConverter}}"
+                                            Style="{StaticResource SecondaryButton}" />
                                     </VerticalStackLayout>
                                 </Frame>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
 
-                </Grid>
+                    <Label
+                        Text="Seleção manual por botões físicos/simplificados"
+                        Style="{StaticResource FieldLabel}" />
+                    <HorizontalStackLayout BindableLayout.ItemsSource="{Binding PartyOptions}" Spacing="8">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="model:VotingPartyOption">
+                                <Button
+                                    Text="{Binding Acronym}"
+                                    Command="{Binding Source={x:Reference VotingRoot}, Path=BindingContext.SelectPartyCommand}"
+                                    CommandParameter="{Binding .}"
+                                    IsEnabled="{Binding IsDisabled, Converter={StaticResource InverseBoolConverter}}"
+                                    WidthRequest="120" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
             </Frame>
 
-            <!-- ═══ DIREITA — Painel de votação ══════════════════ -->
-            <VerticalStackLayout Grid.Column="1" Spacing="14">
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Fase 3: Biometria e decisão" Style="{StaticResource SectionHeader}" />
 
-                <!-- Painel: entidade seleccionada + botão votar -->
-                <Frame Style="{StaticResource CardFrame}">
-                    <VerticalStackLayout Spacing="16">
+                    <Button
+                        Text="Ler sensor biométrico"
+                        Command="{Binding StartBiometricCommand}"
+                        IsEnabled="{Binding CanStartBiometric}" />
 
-                        <VerticalStackLayout Spacing="2">
-                            <Label Text="Iniciar Votação" Style="{StaticResource SectionHeader}" />
+                    <ActivityIndicator
+                        IsVisible="{Binding IsScanning}"
+                        IsRunning="{Binding IsScanning}"
+                        Color="{StaticResource Primary}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button
+                            Text="Confirmar voto"
+                            Command="{Binding ConfirmVoteCommand}"
+                            IsEnabled="{Binding CanConfirmOrCancel}" />
+                        <Button
+                            Grid.Column="1"
+                            Text="Cancelar voto"
+                            Command="{Binding CancelVoteCommand}"
+                            IsEnabled="{Binding CanConfirmOrCancel}"
+                            Style="{StaticResource DangerButton}" />
+                    </Grid>
+
+                    <Frame
+                        Style="{StaticResource FeedbackFrame}"
+                        BackgroundColor="{Binding SessionResultColor}"
+                        BorderColor="Transparent"
+                        IsVisible="{Binding SessionResultMessage, Converter={StaticResource NullToBoolConverter}}">
+                        <VerticalStackLayout Spacing="4">
                             <Label
-                                Text="Entidade seleccionada para esta sessão"
-                                Style="{StaticResource Caption}" />
-                        </VerticalStackLayout>
-
-                        <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
-
-                        <!-- Entidade seleccionada (quando existe) -->
-                        <Frame
-                            BackgroundColor="{StaticResource PrimaryLight}"
-                            CornerRadius="14"
-                            Padding="16,14"
-                            HasShadow="False"
-                            BorderColor="{StaticResource Primary}"
-                            IsVisible="{Binding IsEntitySelected}">
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-                                <Frame
-                                    Grid.Column="0"
-                                    BackgroundColor="{StaticResource Primary}"
-                                    CornerRadius="10"
-                                    Padding="12,8"
-                                    HasShadow="False"
-                                    BorderColor="Transparent"
-                                    VerticalOptions="Center">
-                                    <Label
-                                        Text="{Binding SelectedEntity.Acronym}"
-                                        TextColor="White"
-                                        FontAttributes="Bold"
-                                        FontSize="16" />
-                                </Frame>
-                                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
-                                    <Label
-                                        Text="{Binding SelectedEntity.Name}"
-                                        FontAttributes="Bold"
-                                        FontSize="14"
-                                        TextColor="{StaticResource OnSurface}" />
-                                    <Label
-                                        Text="{Binding SelectedEntity.Description}"
-                                        FontSize="11"
-                                        TextColor="{StaticResource OnSurfaceMuted}"
-                                        IsVisible="{Binding SelectedEntity.Description, Converter={StaticResource NullToBoolConverter}}" />
-                                </VerticalStackLayout>
-                            </Grid>
-                        </Frame>
-
-                        <!-- Aviso quando nenhuma entidade seleccionada -->
-                        <Frame
-                            BackgroundColor="{StaticResource WarningLight}"
-                            CornerRadius="10"
-                            Padding="14,10"
-                            HasShadow="False"
-                            BorderColor="{StaticResource Warning}"
-                            IsVisible="{Binding IsEntitySelected, Converter={StaticResource InverseBoolConverter}}">
-                            <Label
-                                Text="Seleccione uma entidade na grelha à esquerda para continuar."
-                                TextColor="{StaticResource Warning}"
-                                FontSize="12"
+                                Text="{Binding SessionResultTitle}"
+                                TextColor="White"
                                 FontAttributes="Bold"
-                                HorizontalTextAlignment="Center" />
-                        </Frame>
+                                FontSize="14" />
+                            <Label
+                                Text="{Binding SessionResultMessage}"
+                                TextColor="White"
+                                FontSize="12" />
+                        </VerticalStackLayout>
+                    </Frame>
 
-                        <!-- Botão Iniciar Votação -->
-                        <Button
-                            Text="🗳  Iniciar Votação"
-                            Command="{Binding StartVoteCommand}"
-                            IsEnabled="{Binding CanVote}"
-                            FontSize="15"
-                            FontAttributes="Bold"
-                            HeightRequest="52"
-                            CornerRadius="12"
-                            BackgroundColor="{StaticResource Primary}"
-                            TextColor="White" />
+                    <Button
+                        Text="Nova sessão"
+                        Command="{Binding NewSessionCommand}"
+                        Style="{StaticResource SecondaryButton}" />
+                </VerticalStackLayout>
+            </Frame>
 
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Painel: aguardando dedo (IsVoting) -->
-                <Frame
-                    Style="{StaticResource CardFrame}"
-                    IsVisible="{Binding IsVoting}">
-                    <VerticalStackLayout Spacing="18" HorizontalOptions="Center">
-                        <ActivityIndicator
-                            IsRunning="True"
-                            Color="{StaticResource Primary}"
-                            WidthRequest="48"
-                            HeightRequest="48"
-                            HorizontalOptions="Center" />
-                        <Label
-                            Text="👆"
-                            FontSize="40"
-                            HorizontalOptions="Center" />
-                        <Label
-                            Text="Aguardando impressão digital..."
-                            FontSize="15"
-                            FontAttributes="Bold"
-                            HorizontalOptions="Center"
-                            HorizontalTextAlignment="Center"
-                            TextColor="{StaticResource Primary}" />
-                        <Label
-                            Text="Peça ao eleitor que coloque o dedo no sensor biométrico."
-                            FontSize="12"
-                            TextColor="{StaticResource OnSurfaceMuted}"
-                            HorizontalOptions="Center"
-                            HorizontalTextAlignment="Center" />
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Painel: resultado (HasResult) -->
-                <Frame
-                    Style="{StaticResource CardFrame}"
-                    IsVisible="{Binding HasResult}">
-                    <VerticalStackLayout Spacing="14">
-
-                        <!-- Ícone de resultado -->
-                        <Label
-                            Text="✅"
-                            FontSize="42"
-                            HorizontalOptions="Center"
-                            IsVisible="{Binding VoteSuccess}" />
-                        <Label
-                            Text="❌"
-                            FontSize="42"
-                            HorizontalOptions="Center"
-                            IsVisible="{Binding VoteSuccess, Converter={StaticResource InverseBoolConverter}}" />
-
-                        <!-- Título resultado -->
-                        <Label
-                            Text="{Binding ResultTitle}"
-                            FontSize="18"
-                            FontAttributes="Bold"
-                            HorizontalOptions="Center"
-                            HorizontalTextAlignment="Center"
-                            TextColor="{Binding VoteSuccess, Converter={StaticResource BoolToColorConverter}}" />
-
-                        <!-- Nome do eleitor (só em caso de sucesso) -->
-                        <Frame
-                            BackgroundColor="{StaticResource SuccessLight}"
-                            CornerRadius="10"
-                            Padding="14,10"
-                            HasShadow="False"
-                            BorderColor="Transparent"
-                            IsVisible="{Binding VoteSuccess}">
-                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
-                                <Label
-                                    Text="Eleitor"
-                                    FontSize="10"
-                                    TextColor="{StaticResource Success}"
-                                    HorizontalOptions="Center"
-                                    CharacterSpacing="1" />
-                                <Label
-                                    Text="{Binding ResultVoterName}"
-                                    FontSize="16"
-                                    FontAttributes="Bold"
-                                    TextColor="{StaticResource Success}"
-                                    HorizontalOptions="Center"
-                                    HorizontalTextAlignment="Center" />
-                            </VerticalStackLayout>
-                        </Frame>
-
-                        <!-- Mensagem detalhada -->
-                        <Label
-                            Text="{Binding ResultMessage}"
-                            FontSize="12"
-                            TextColor="{StaticResource OnSurfaceMuted}"
-                            HorizontalOptions="Center"
-                            HorizontalTextAlignment="Center" />
-
-                        <BoxView Color="{StaticResource BorderLight}" HeightRequest="1" />
-
-                        <!-- Botão novo voto -->
-                        <Button
-                            Text="↺  Novo Voto"
-                            Command="{Binding ResetVoteCommand}"
-                            Style="{StaticResource SecondaryButton}"
-                            HorizontalOptions="Center" />
-
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Info card -->
-                <Frame Style="{StaticResource CardFrameAccent}">
-                    <VerticalStackLayout Spacing="8">
-                        <Label
-                            Text="ℹ  Como funciona"
-                            FontAttributes="Bold"
-                            TextColor="{StaticResource Primary}"
-                            FontSize="13" />
-                        <Label
-                            Text="1. Seleccione a entidade na grelha.&#10;2. Clique em «Iniciar Votação».&#10;3. O eleitor coloca o dedo no sensor.&#10;4. O sistema autentica e regista o voto automaticamente."
-                            TextColor="{StaticResource OnSurfaceMuted}"
-                            FontSize="12" />
-                    </VerticalStackLayout>
-                </Frame>
-
-            </VerticalStackLayout>
-        </Grid>
-
-    </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

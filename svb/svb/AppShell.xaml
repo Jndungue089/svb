@@ -35,13 +35,13 @@
             </Frame>
             <Label
                 Text="SVB"
-                TextColor="#FDF6E3"
+                TextColor="White"
                 FontSize="20"
                 FontAttributes="Bold"
                 Margin="0,10,0,0" />
             <Label
                 Text="Sistema de Votação"
-                TextColor="#A89070"
+                TextColor="White"
                 FontSize="11"
                 CharacterSpacing="0.5" />
             <BoxView Color="#5C3728" HeightRequest="1" Margin="0,16,0,0" />
@@ -95,7 +95,7 @@
             <BoxView Color="#5C3728" HeightRequest="1" Margin="0,0,0,14" />
             <Label
                 Text="v2.0  ·  Admin"
-                TextColor="#7A6050"
+                TextColor="White"
                 FontSize="11"
                 HorizontalOptions="Center" />
         </VerticalStackLayout>

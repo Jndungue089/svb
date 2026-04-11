@@ -85,6 +85,11 @@ public class VoteService
     public async Task<Voter?> GetVoterByFingerAsync(int fingerId) =>
         await _db.Voters.Include(v => v.Vote).FirstOrDefaultAsync(v => v.FingerId == fingerId);
 
+    public async Task<Voter?> GetVoterByBiAsync(string bi) =>
+        await _db.Voters
+            .Include(v => v.Vote)
+            .FirstOrDefaultAsync(v => v.BI == bi);
+
     public async Task<Voter> RegisterVoterAsync(string name, string bi)
     {
         if (await _db.Voters.AnyAsync(v => v.BI == bi))

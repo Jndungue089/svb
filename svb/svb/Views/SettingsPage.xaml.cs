@@ -9,4 +9,11 @@ public partial class SettingsPage : ContentPage
         InitializeComponent();
         BindingContext = ServiceHelper.GetService<SettingsViewModel>();
     }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        if (BindingContext is SettingsViewModel vm)
+            vm.LoadSerialCommand.Execute(null);
+    }
 }
