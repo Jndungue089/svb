@@ -90,7 +90,7 @@ Ligado via barramento **I²C** (pinos **GPIO21 = SDA** e **GPIO22 = SCL**).
 Usado pelo eleitor para **confirmar** o voto.
 
 ### Botão NEXT (BTN_NEXT) — GPIO 32
-Usado pelo eleitor para **navegar para a próxima opção**.
+Usado pelo eleitor para **navegar para a próxima entidade**.
 
 ### LED D1 (LED_OK) — GPIO 25
 LED vermelho que pisca em verde quando o voto é bem-sucedido.
