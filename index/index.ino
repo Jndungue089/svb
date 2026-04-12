@@ -422,7 +422,8 @@ void loop() {
     }
 
     if (cmd.startsWith("INFO:")) {
-      lcdMsg("Novo Eleitor:", cmd.substring(5, 21).c_str());
+      String nomeInfo = cmd.substring(5, 21);
+      lcdMsg("Novo Eleitor:", nomeInfo.c_str());
       delay(3000);
       return;
     }
