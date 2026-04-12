@@ -1,6 +1,11 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.IO.Ports;
 using System.Text;
+#if WINDOWS
+using System.Management;
+using System.Text.RegularExpressions;
+#endif
 
 namespace BeneditaUI.Services;
 
@@ -27,6 +32,9 @@ public class SerialMonitorService : IDisposable
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(portName))
+                return (false, "Selecione uma porta COM válida.");
+
             Close();
             _port = new SerialPort(portName, baud, Parity.None, 8, StopBits.One)
             {
@@ -45,8 +53,21 @@ public class SerialMonitorService : IDisposable
             AddEntry($"[CONNECTED] {portName} @ {baud}", SerialDirection.System);
             return (true, "");
         }
+        catch (UnauthorizedAccessException)
+        {
+            const string message = "Porta ocupada/permissão negada. Feche Arduino IDE, monitor serial ou backend que esteja usando esta COM e tente novamente.";
+            AddEntry($"[ERROR] {message}", SerialDirection.System);
+            return (false, message);
+        }
+        catch (IOException ex)
+        {
+            var message = $"Falha de E/S ao abrir a porta: {ex.Message}";
+            AddEntry($"[ERROR] {message}", SerialDirection.System);
+            return (false, message);
+        }
         catch (Exception ex)
         {
+            AddEntry($"[ERROR] {ex.Message}", SerialDirection.System);
             return (false, ex.Message);
         }
     }
@@ -55,6 +76,8 @@ public class SerialMonitorService : IDisposable
 
     public void Close()
     {
+        var wasOpen = _port?.IsOpen ?? false;
+
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;
@@ -72,7 +95,9 @@ public class SerialMonitorService : IDisposable
         _port?.Dispose();
         _port = null;
         _rxBuffer.Clear();
-        AddEntry("[DISCONNECTED]", SerialDirection.System);
+
+        if (wasOpen)
+            AddEntry("[DISCONNECTED]", SerialDirection.System);
     }
 
     // ── Enviar ────────────────────────────────────────────────
@@ -160,7 +185,80 @@ public class SerialMonitorService : IDisposable
     public void Dispose() => Close();
 
     // ── Listar portas disponíveis ─────────────────────────────
-    public static string[] AvailablePorts => SerialPort.GetPortNames();
+    public static string[] AvailablePorts
+    {
+        get
+        {
+            var allPorts = SerialPort.GetPortNames()
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (allPorts.Length == 0)
+                return allPorts;
+
+#if WINDOWS
+            try
+            {
+                var likely = GetLikelyEspPorts(allPorts);
+                if (likely.Length > 0)
+                    return likely;
+            }
+            catch
+            {
+                // Em caso de falha no WMI, usa a lista completa sem bloquear a UI.
+            }
+#endif
+
+            return allPorts;
+        }
+    }
+
+#if WINDOWS
+    private static string[] GetLikelyEspPorts(string[] allPorts)
+    {
+        var byPort = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var port in allPorts)
+            byPort[port] = string.Empty;
+
+        using var searcher = new ManagementObjectSearcher(
+            "SELECT Caption FROM Win32_PnPEntity WHERE Caption LIKE '%(COM%'");
+
+        foreach (var item in searcher.Get())
+        {
+            var caption = item["Caption"]?.ToString() ?? string.Empty;
+            var match = Regex.Match(caption, @"\((COM\d+)\)", RegexOptions.IgnoreCase);
+            if (!match.Success)
+                continue;
+
+            var com = match.Groups[1].Value;
+            if (byPort.ContainsKey(com))
+                byPort[com] = caption;
+        }
+
+        static bool IsLikelyEspCaption(string caption)
+        {
+            if (string.IsNullOrWhiteSpace(caption))
+                return false;
+
+            var c = caption.ToUpperInvariant();
+            return c.Contains("USB") ||
+                   c.Contains("UART") ||
+                   c.Contains("CH340") ||
+                   c.Contains("CH910") ||
+                   c.Contains("CP210") ||
+                   c.Contains("FTDI") ||
+                   c.Contains("SILICON LABS") ||
+                   c.Contains("ESP32") ||
+                   c.Contains("ESPRESSIF");
+        }
+
+        return byPort
+            .Where(kvp => IsLikelyEspCaption(kvp.Value))
+            .Select(kvp => kvp.Key)
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+#endif
 }
 
 public record SerialEntry(DateTime Time, string Text, SerialDirection Direction)
