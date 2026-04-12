@@ -196,7 +196,8 @@ void enrolarDigital(int slot) {
     return;
   }
 
-  lcdMsg("Digital gravada!", "Slot: " + String(slot));
+  String slotLine = "Slot: " + String(slot);
+  lcdMsg("Digital gravada!", slotLine.c_str());
   piscarLED(LED_OK, 3, 200);
   Serial.println("RES:ENROLL:OK:" + String(slot));
   delay(2000);

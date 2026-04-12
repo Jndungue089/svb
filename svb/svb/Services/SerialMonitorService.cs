@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO.Ports;
+using System.Text;
 
 namespace BeneditaUI.Services;
 
@@ -12,6 +13,7 @@ public class SerialMonitorService : IDisposable
 {
     private SerialPort? _port;
     private CancellationTokenSource? _cts;
+    private readonly StringBuilder _rxBuffer = new();
 
     public ObservableCollection<SerialEntry> Log { get; } = new();
 
@@ -28,11 +30,14 @@ public class SerialMonitorService : IDisposable
             Close();
             _port = new SerialPort(portName, baud, Parity.None, 8, StopBits.One)
             {
-                ReadTimeout  = 300,
+                ReadTimeout  = SerialPort.InfiniteTimeout,
                 WriteTimeout = 500,
                 NewLine      = "\n"
             };
             _port.Open();
+            _port.DiscardInBuffer();
+            _port.DiscardOutBuffer();
+            _rxBuffer.Clear();
 
             _cts = new CancellationTokenSource();
             _ = ReadLoopAsync(_cts.Token);
@@ -51,9 +56,22 @@ public class SerialMonitorService : IDisposable
     public void Close()
     {
         _cts?.Cancel();
-        _port?.Close();
+        _cts?.Dispose();
+        _cts = null;
+
+        try
+        {
+            if (_port is { IsOpen: true })
+                _port.Close();
+        }
+        catch
+        {
+            // Ignora erros de fecho para não derrubar a UI.
+        }
+
         _port?.Dispose();
         _port = null;
+        _rxBuffer.Clear();
         AddEntry("[DISCONNECTED]", SerialDirection.System);
     }
 
@@ -76,11 +94,33 @@ public class SerialMonitorService : IDisposable
         {
             try
             {
-                var line = await Task.Run(() => _port!.ReadLine(), token);
-                AddEntry(line.Trim(), SerialDirection.Rx);
-                LineReceived?.Invoke(line.Trim());
+                if (_port is not { IsOpen: true })
+                    break;
+
+                if (_port.BytesToRead == 0)
+                {
+                    await Task.Delay(20, token);
+                    continue;
+                }
+
+                var chunk = _port.ReadExisting();
+                if (string.IsNullOrEmpty(chunk))
+                {
+                    await Task.Delay(10, token);
+                    continue;
+                }
+
+                _rxBuffer.Append(chunk);
+
+                while (TryExtractLine(out var line))
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    AddEntry(line, SerialDirection.Rx);
+                    LineReceived?.Invoke(line);
+                }
             }
-            catch (TimeoutException) { }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
@@ -88,6 +128,25 @@ public class SerialMonitorService : IDisposable
                 break;
             }
         }
+    }
+
+    private bool TryExtractLine(out string line)
+    {
+        line = string.Empty;
+        if (_rxBuffer.Length == 0)
+            return false;
+
+        for (int i = 0; i < _rxBuffer.Length; i++)
+        {
+            if (_rxBuffer[i] != '\n')
+                continue;
+
+            line = _rxBuffer.ToString(0, i).Trim('\r', '\n', ' ');
+            _rxBuffer.Remove(0, i + 1);
+            return true;
+        }
+
+        return false;
     }
 
     // ── Helper ────────────────────────────────────────────────
