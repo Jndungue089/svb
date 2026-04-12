@@ -37,6 +37,12 @@ public class SerialHostedService : BackgroundService
         _desiredPortName = _config["Serial:Port"];
         _desiredBaudRate = int.TryParse(_config["Serial:BaudRate"], out var baud) ? baud : 115200;
         _reconnectRequested = !string.IsNullOrWhiteSpace(_desiredPortName);
+
+        if (string.IsNullOrWhiteSpace(_desiredPortName))
+        {
+            _desiredPortName = "AUTO";
+            _reconnectRequested = true;
+        }
     }
 
     public string[] GetAvailablePorts() =>
@@ -170,33 +176,53 @@ public class SerialHostedService : BackgroundService
                 return;
         }
 
-        try
+        var availablePorts = GetAvailablePorts();
+        var useAuto = string.Equals(desiredPort, "AUTO", StringComparison.OrdinalIgnoreCase);
+        var candidates = useAuto
+            ? availablePorts
+            : new[] { desiredPort! };
+
+        if (!useAuto && !availablePorts.Contains(desiredPort!, StringComparer.OrdinalIgnoreCase))
         {
-            var newPort = new SerialPort(desiredPort, desiredBaud, Parity.None, 8, StopBits.One)
-            {
-                ReadTimeout = 200,
-                WriteTimeout = 500,
-                NewLine = "\n"
-            };
-
-            newPort.Open();
-
             lock (_stateLock)
-            {
-                ClosePortUnsafe();
-                _port = newPort;
-                _reconnectRequested = false;
-                _lastError = string.Empty;
-            }
+                _lastError = $"Porta {desiredPort} não encontrada. Disponíveis: {string.Join(", ", availablePorts)}";
 
-            _logger.LogInformation("Serial: porta aberta em {Port} @ {Baud}", desiredPort, desiredBaud);
+            _logger.LogWarning("Serial: porta {Port} não encontrada. Disponíveis: {Ports}",
+                desiredPort, string.Join(", ", availablePorts));
+            return;
         }
-        catch (Exception ex)
-        {
-            lock (_stateLock)
-                _lastError = ex.Message;
 
-            _logger.LogWarning(ex, "Serial: falha ao abrir {Port} @ {Baud}", desiredPort, desiredBaud);
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                var newPort = new SerialPort(candidate, desiredBaud, Parity.None, 8, StopBits.One)
+                {
+                    ReadTimeout = 200,
+                    WriteTimeout = 500,
+                    NewLine = "\n"
+                };
+
+                newPort.Open();
+
+                lock (_stateLock)
+                {
+                    ClosePortUnsafe();
+                    _port = newPort;
+                    _reconnectRequested = false;
+                    _lastError = string.Empty;
+                }
+
+                _logger.LogInformation("Serial: porta aberta em {Port} @ {Baud}", candidate, desiredBaud);
+                return;
+            }
+            catch (Exception ex)
+            {
+                lock (_stateLock)
+                    _lastError = ex.Message;
+
+                _logger.LogWarning(ex, "Serial: falha ao abrir {Port} @ {Baud}", candidate, desiredBaud);
+            }
         }
     }
 
