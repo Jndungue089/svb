@@ -86,11 +86,11 @@ Sensor de impressão digital. Ligado aos pinos **GPIO16 (RX)** e **GPIO17 (TX)**
 Ecrã de 16 colunas × 2 linhas onde aparecem as mensagens ao eleitor.  
 Ligado via barramento **I²C** (pinos **GPIO21 = SDA** e **GPIO22 = SCL**).
 
-### Botão 1 (BTN_CONFIRM) — GPIO 21
+### Botão 1 (BTN_CONFIRM) — GPIO 33
 Usado pelo eleitor para **confirmar** o voto.
 
-### Botão 2 (BTN_CANCEL) — GPIO 22
-Usado pelo eleitor para **cancelar** a operação.
+### Botão 2 (BTN_NEXT) — GPIO 32
+Usado pelo eleitor para **navegar para a próxima opção**.
 
 ### LED D1 (LED_OK) — GPIO 25
 LED vermelho que pisca em verde quando o voto é bem-sucedido.
@@ -213,12 +213,14 @@ Uma **biblioteca** é um conjunto de código já escrito por outra pessoa que po
 ### Definição dos pinos
 
 ```cpp
-#define RX_FINGER  16   // Pino do ESP32 onde o TX do sensor está ligado
-#define TX_FINGER  17   // Pino do ESP32 onde o RX do sensor está ligado
-#define BTN_CONFIRM  21 // Pino do botão de confirmar
-#define BTN_CANCEL   22 // Pino do botão de cancelar
-#define LED_OK    25    // Pino do LED verde (sucesso)
-#define LED_ERROR 26    // Pino do LED vermelho (erro)
+#define RX_FINGER   16  // Pino do ESP32 onde o TX do sensor está ligado
+#define TX_FINGER   17  // Pino do ESP32 onde o RX do sensor está ligado
+#define LCD_SDA     21  // I2C SDA do LCD
+#define LCD_SCL     22  // I2C SCL do LCD
+#define BTN_NEXT    32  // Pino do botão para próxima opção
+#define BTN_CONFIRM 33  // Pino do botão de confirmar
+#define LED_OK      25  // Pino do LED verde (sucesso)
+#define LED_ERROR   26  // Pino do LED vermelho (erro)
 ```
 
 `#define` é uma instrução ao compilador para **substituir o texto**. Sempre que o compilador encontrar `LED_OK`, substitui por `25`. Isso torna o código mais legível — é mais fácil ler `LED_OK` do que o número `25`.
@@ -708,7 +710,7 @@ Vamos seguir um voto do início ao fim:
 6. ESP32 lê a resposta → mostra "Confirmar voto?" no LCD
          │
          ▼
-7. ELEITOR pressiona BTN_CONFIRM (GPIO 21)
+7. ELEITOR pressiona BTN_CONFIRM (GPIO 33)
          │
          ▼
 8. ESP32 envia:  "CMD:VOTE:5:OPCAO_A\n"
