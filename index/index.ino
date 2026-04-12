@@ -33,6 +33,9 @@
 
 #define BTN_NEXT    21   // navega para próxima entidade
 #define BTN_CONFIRM 22   // confirma voto
+#define BTN_PARTY_1 18   // botão físico do 1º partido
+#define BTN_PARTY_2 19   // botão físico do 2º partido
+#define BTN_PARTY_3 23   // botão físico do 3º partido
 
 #define LED_OK      25
 #define LED_ERROR   26
@@ -261,6 +264,34 @@ int seleccionarEntidade() {
   return -1; // timeout
 }
 
+/**
+ * Seleção manual por 3 botões físicos (partidos 1, 2 e 3).
+ * Se não houver 3 entidades carregadas, usa o fluxo antigo (NEXT/CONFIRM).
+ */
+int seleccionarEntidadeComBotoes() {
+  if (numEntidades >= 3) {
+    unsigned long inicio = millis();
+
+    while (millis() - inicio < 60000UL) {
+      lcdMsg("Escolha partido", "B1 B2 B3");
+
+      if (btnPressionado(BTN_PARTY_1)) return entidades[0].id;
+      if (btnPressionado(BTN_PARTY_2)) return entidades[1].id;
+      if (btnPressionado(BTN_PARTY_3)) return entidades[2].id;
+
+      // Permite fallback para a navegacao classica, caso necessario.
+      if (btnPressionado(BTN_CONFIRM)) return entidades[0].id;
+      if (btnPressionado(BTN_NEXT)) return seleccionarEntidade();
+
+      delay(25);
+    }
+
+    return -1;
+  }
+
+  return seleccionarEntidade();
+}
+
 // ================= VOTAR =================
 
 bool registrarVoto(int fingerID, int entityID) {
@@ -338,6 +369,9 @@ void setup() {
 
   pinMode(BTN_NEXT,    INPUT_PULLUP);
   pinMode(BTN_CONFIRM, INPUT_PULLUP);
+  pinMode(BTN_PARTY_1, INPUT_PULLUP);
+  pinMode(BTN_PARTY_2, INPUT_PULLUP);
+  pinMode(BTN_PARTY_3, INPUT_PULLUP);
   pinMode(LED_OK,      OUTPUT);
   pinMode(LED_ERROR,   OUTPUT);
   digitalWrite(LED_OK,    LOW);
@@ -421,8 +455,8 @@ void loop() {
     return;
   }
 
-  // Seleccionar entidade
-  int entityID = seleccionarEntidade();
+  // Seleccionar entidade (3 botoes fisicos dos 3 partidos)
+  int entityID = seleccionarEntidadeComBotoes();
 
   if (entityID < 0) {
     lcdMsg("Cancelado", "");
