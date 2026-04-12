@@ -86,10 +86,10 @@ Sensor de impressão digital. Ligado aos pinos **GPIO16 (RX)** e **GPIO17 (TX)**
 Ecrã de 16 colunas × 2 linhas onde aparecem as mensagens ao eleitor.  
 Ligado via barramento **I²C** (pinos **GPIO21 = SDA** e **GPIO22 = SCL**).
 
-### Botão 1 (BTN_CONFIRM) — GPIO 33
+### Botão CONFIRM (BTN_CONFIRM) — GPIO 33
 Usado pelo eleitor para **confirmar** o voto.
 
-### Botão 2 (BTN_NEXT) — GPIO 32
+### Botão NEXT (BTN_NEXT) — GPIO 32
 Usado pelo eleitor para **navegar para a próxima opção**.
 
 ### LED D1 (LED_OK) — GPIO 25
