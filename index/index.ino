@@ -26,13 +26,17 @@
 
 #include <Adafruit_Fingerprint.h>
 #include <LiquidCrystal_I2C.h>
+#include <Wire.h>
 
 // ================= HARDWARE =================
 #define RX_FINGER   16
 #define TX_FINGER   17
 
-#define BTN_NEXT    21   // navega para próxima entidade
-#define BTN_CONFIRM 22   // confirma voto
+#define LCD_SDA     21   // I2C SDA do LCD
+#define LCD_SCL     22   // I2C SCL do LCD
+
+#define BTN_NEXT    32   // navega para próxima entidade
+#define BTN_CONFIRM 33   // confirma voto
 #define BTN_PARTY_1 18   // botão físico do 1º partido
 #define BTN_PARTY_2 19   // botão físico do 2º partido
 #define BTN_PARTY_3 23   // botão físico do 3º partido
@@ -378,6 +382,7 @@ void setup() {
   digitalWrite(LED_OK,    LOW);
   digitalWrite(LED_ERROR, LOW);
 
+  Wire.begin(LCD_SDA, LCD_SCL);
   lcd.init();
   lcd.backlight();
 
