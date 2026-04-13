@@ -142,6 +142,23 @@ public class ApiService
         catch (Exception ex) { return (false, ex.Message, 0, string.Empty); }
     }
 
+    public async Task<(bool Ok, string Message, int FingerId, string VoterName)> IdentifyVoterAsync()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(38));
+            var res = await _http.PostAsync("vote/identify", null, cts.Token);
+            var body = await res.Content.ReadFromJsonAsync<VoteScanResponse>(_json);
+
+            if (res.IsSuccessStatusCode && body is not null)
+                return (true, body.Mensagem ?? "Biometria validada.", body.FingerId, body.NomeEleitor ?? string.Empty);
+
+            return (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}", 0, string.Empty);
+        }
+        catch (OperationCanceledException) { return (false, "Tempo esgotado na leitura biométrica.", 0, string.Empty); }
+        catch (Exception ex) { return (false, ex.Message, 0, string.Empty); }
+    }
+
     public async Task<(bool Ok, string Message)> ConfirmVoteAsync(int fingerId, int entityId)
     {
         try

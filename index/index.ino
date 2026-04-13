@@ -22,6 +22,10 @@
  *   API   → ESP32:  CMD:VOTE_SCAN:{entity_id}\n  (votação iniciada pelo painel)
  *   ESP32 → API  :  RES:VOTE_SCAN:OK:{nome}\n    (voto registado)
  *   ESP32 → API  :  RES:VOTE_SCAN:ERROR:{motivo}\n
+ *
+ *   API   → ESP32:  CMD:IDENTIFY_SCAN\n            (apenas identificar eleitor)
+ *   ESP32 → API  :  RES:IDENTIFY_SCAN:OK:{finger}:{nome}\n
+ *   ESP32 → API  :  RES:IDENTIFY_SCAN:ERROR:{motivo}\n
  */
 
 #include <Adafruit_Fingerprint.h>
@@ -469,6 +473,47 @@ bool registrarVoto(int fingerID, int entityID) {
   return res.startsWith("RES:VOTE:OK");
 }
 
+void identificarEleitor() {
+  if (!sensorReady && !initFingerprintSensor()) {
+    Serial.println("RES:IDENTIFY_SCAN:ERROR:SENSOR_OFFLINE");
+    lcdMsg("Erro sensor", "AS608 offline");
+    return;
+  }
+
+  lcdMsg("Coloque o dedo", "para identificar");
+
+  unsigned long inicio = millis();
+  int fingerID = -1;
+  while (millis() - inicio < 30000UL) {
+    fingerID = capturarDigital();
+    if (fingerID >= 0) break;
+    delay(100);
+  }
+
+  if (fingerID < 0) {
+    Serial.println("RES:IDENTIFY_SCAN:ERROR:TIMEOUT");
+    lcdMsg("Tempo esgotado", "");
+    piscarLED(LED_ERROR, 2, 200);
+    return;
+  }
+
+  String nomeEleitor;
+  String motivoNegacao;
+  if (!autenticarNoServidor(fingerID, nomeEleitor, motivoNegacao)) {
+    motivoNegacao.replace(":", "-");
+    motivoNegacao.replace("\n", " ");
+    motivoNegacao.replace("\r", " ");
+    Serial.println("RES:IDENTIFY_SCAN:ERROR:" + motivoNegacao);
+    piscarLED(LED_ERROR, 2, 200);
+    return;
+  }
+
+  nomeEleitor.replace(":", "-");
+  nomeEleitor.replace("\n", " ");
+  nomeEleitor.replace("\r", " ");
+  Serial.println("RES:IDENTIFY_SCAN:OK:" + String(fingerID) + ":" + nomeEleitor);
+}
+
 // ================= VOTAÇÃO COM ENTIDADE PRÉ-DEFINIDA (VOTE_SCAN) =================
 
 /**
@@ -596,6 +641,11 @@ void loop() {
       } else {
         votarComEntidadePredefinida(entityID);
       }
+      return;
+    }
+
+    if (cmd == "CMD:IDENTIFY_SCAN") {
+      identificarEleitor();
       return;
     }
 

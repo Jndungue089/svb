@@ -25,22 +25,13 @@ public partial class VotingViewModel : ObservableObject
     private bool _isScanning;
 
     [ObservableProperty]
-    private string _biInput = string.Empty;
-
-    [ObservableProperty]
-    private string _voterCardInput = string.Empty;
-
-    [ObservableProperty]
     private bool _identificationPassed;
 
     [ObservableProperty]
-    private string _identificationMessage = "Informe BI e cartão para iniciar.";
+    private string _identificationMessage = "Clique em Ler impressão digital para identificar o eleitor.";
 
     [ObservableProperty]
     private Color _identificationMessageColor = Colors.Gray;
-
-    [ObservableProperty]
-    private bool _isAwaitingConfirmation;
 
     [ObservableProperty]
     private bool _hasCompletedSession;
@@ -67,21 +58,18 @@ public partial class VotingViewModel : ObservableObject
     public bool CanSubmitIdentification =>
         !IsLoading &&
         !IsScanning &&
-        !IdentificationPassed &&
-        !string.IsNullOrWhiteSpace(BiInput) &&
-        !string.IsNullOrWhiteSpace(VoterCardInput);
+        !IdentificationPassed;
 
     public bool CanSelectParty =>
         IdentificationPassed &&
         !IsLoading &&
         !IsScanning &&
-        !IsAwaitingConfirmation &&
         !HasCompletedSession;
 
-    public bool CanStartBiometric => CanSelectParty && SelectedParty is not null;
-
     public bool CanConfirmOrCancel =>
-        IsAwaitingConfirmation &&
+        IdentificationPassed &&
+        SelectedParty is not null &&
+        !HasCompletedSession &&
         !IsLoading &&
         !IsScanning &&
         _scannedFingerId > 0;
@@ -92,19 +80,15 @@ public partial class VotingViewModel : ObservableObject
         RaiseComputed();
     }
 
-    partial void OnBiInputChanged(string value) => RaiseComputed();
-    partial void OnVoterCardInputChanged(string value) => RaiseComputed();
     partial void OnIsLoadingChanged(bool value) => RaiseComputed();
     partial void OnIsScanningChanged(bool value) => RaiseComputed();
     partial void OnIdentificationPassedChanged(bool value) => RaiseComputed();
-    partial void OnIsAwaitingConfirmationChanged(bool value) => RaiseComputed();
     partial void OnHasCompletedSessionChanged(bool value) => RaiseComputed();
 
     private void RaiseComputed()
     {
         OnPropertyChanged(nameof(CanSubmitIdentification));
         OnPropertyChanged(nameof(CanSelectParty));
-        OnPropertyChanged(nameof(CanStartBiometric));
         OnPropertyChanged(nameof(CanConfirmOrCancel));
         OnPropertyChanged(nameof(HasSelectedParty));
     }
@@ -139,7 +123,7 @@ public partial class VotingViewModel : ObservableObject
             _ => "3 partidos disponíveis para seleção por toque ou por botões."
         };
 
-        ResetSessionState(clearInputs: true, keepIdentificationMessage: false);
+        ResetSessionState(keepIdentificationMessage: false);
         IsLoading = false;
     }
 
@@ -149,40 +133,30 @@ public partial class VotingViewModel : ObservableObject
         if (!CanSubmitIdentification)
             return;
 
-        IsLoading = true;
+        IsScanning = true;
+        IdentificationMessage = "Aguardando leitura da impressão digital...";
+        IdentificationMessageColor = Colors.Orange;
 
-        var voters = await _api.GetVotersAsync();
-        if (voters is null)
+        var (ok, message, fingerId, voterName) = await _api.IdentifyVoterAsync();
+
+        IsScanning = false;
+        if (!ok)
         {
-            IsLoading = false;
-            IdentificationMessage = "Não foi possível validar o BI na API.";
+            IdentificationPassed = false;
+            IdentificationMessage = message;
             IdentificationMessageColor = Colors.Crimson;
             return;
         }
 
-        var voter = voters.FirstOrDefault(v =>
-            string.Equals(v.BI.Trim(), BiInput.Trim(), StringComparison.OrdinalIgnoreCase));
-
-        if (voter is null)
-        {
-            IsLoading = false;
-            IdentificationMessage = "BI não encontrado no cadastro.";
-            IdentificationMessageColor = Colors.Crimson;
-            return;
-        }
-
-        if (!voter.CanVote)
-        {
-            IsLoading = false;
-            IdentificationMessage = "Este eleitor já votou e não pode votar novamente.";
-            IdentificationMessageColor = Colors.Crimson;
-            return;
-        }
-
+        _scannedFingerId = fingerId;
+        ScannedVoterName = voterName;
         IdentificationPassed = true;
-        IdentificationMessage = "Identificação validada. Agora escolha o partido.";
+        IdentificationMessage = $"Eleitor identificado: {voterName}. Selecione a entidade.";
         IdentificationMessageColor = Colors.SeaGreen;
-        IsLoading = false;
+
+        SessionResultTitle = "Eleitor validado";
+        SessionResultMessage = $"{voterName} identificado por biometria. Escolha a entidade e confirme o voto.";
+        SessionResultColor = Colors.DodgerBlue;
     }
 
     [RelayCommand]
@@ -192,36 +166,6 @@ public partial class VotingViewModel : ObservableObject
             return;
 
         SelectedParty = option;
-    }
-
-    [RelayCommand]
-    public async Task StartBiometricAsync()
-    {
-        if (!CanStartBiometric || SelectedParty is null)
-            return;
-
-        IsScanning = true;
-        SessionResultTitle = "Leitura biométrica";
-        SessionResultMessage = "Aguardando leitura do sensor...";
-        SessionResultColor = Colors.Orange;
-
-        var (ok, message, fingerId, voterName) = await _api.ScanVoterAsync(BiInput.Trim(), VoterCardInput.Trim());
-
-        IsScanning = false;
-        if (!ok)
-        {
-            SessionResultTitle = "Falha na biometria";
-            SessionResultMessage = message;
-            SessionResultColor = Colors.Crimson;
-            return;
-        }
-
-        _scannedFingerId = fingerId;
-        ScannedVoterName = voterName;
-        IsAwaitingConfirmation = true;
-        SessionResultTitle = "Confirmar voto";
-        SessionResultMessage = $"Biometria de {voterName} validada. Clique em Confirmar para registrar +1 em {SelectedParty.Acronym} ou em Cancelar para abortar.";
-        SessionResultColor = Colors.DodgerBlue;
     }
 
     [RelayCommand]
@@ -242,10 +186,9 @@ public partial class VotingViewModel : ObservableObject
             return;
         }
 
-        IsAwaitingConfirmation = false;
         HasCompletedSession = true;
         SessionResultTitle = "Voto confirmado";
-        SessionResultMessage = $"{message} Foi adicionado +1 ao partido {SelectedParty.Acronym}.";
+        SessionResultMessage = $"{message} Foi adicionado +1 ao partido {SelectedParty.Acronym} para {ScannedVoterName}.";
         SessionResultColor = Colors.SeaGreen;
 
         await RefreshVoteCountsAsync();
@@ -261,7 +204,6 @@ public partial class VotingViewModel : ObservableObject
         var (ok, message) = await _api.CancelVoteAsync();
         IsLoading = false;
 
-        IsAwaitingConfirmation = false;
         HasCompletedSession = true;
         SessionResultTitle = "Voto cancelado";
         SessionResultMessage = ok
@@ -273,32 +215,25 @@ public partial class VotingViewModel : ObservableObject
     [RelayCommand]
     public void NewSession()
     {
-        ResetSessionState(clearInputs: true, keepIdentificationMessage: false);
+        ResetSessionState(keepIdentificationMessage: false);
     }
 
-    private void ResetSessionState(bool clearInputs, bool keepIdentificationMessage)
+    private void ResetSessionState(bool keepIdentificationMessage)
     {
         SelectedParty = null;
         _scannedFingerId = 0;
         ScannedVoterName = string.Empty;
-        IsAwaitingConfirmation = false;
         HasCompletedSession = false;
 
         SessionResultTitle = string.Empty;
         SessionResultMessage = string.Empty;
         SessionResultColor = Colors.Gray;
 
-        if (clearInputs)
-        {
-            BiInput = string.Empty;
-            VoterCardInput = string.Empty;
-        }
-
         IdentificationPassed = false;
 
         if (!keepIdentificationMessage)
         {
-            IdentificationMessage = "Informe BI e cartão para iniciar.";
+            IdentificationMessage = "Clique em Ler impressão digital para identificar o eleitor.";
             IdentificationMessageColor = Colors.Gray;
         }
 

@@ -57,6 +57,44 @@ public class VoteController : ControllerBase
     }
 
     /// <summary>
+    /// Identifica o eleitor apenas pela impressão digital.
+    /// Não escolhe entidade nem regista voto nesta etapa.
+    /// </summary>
+    [HttpPost("identify")]
+    public async Task<IActionResult> Identify(CancellationToken ct)
+    {
+        var result = await _serial.SendIdentifyScanAsync(ct);
+
+        if (!result.StartsWith("RES:IDENTIFY_SCAN:OK:"))
+        {
+            var error = result.StartsWith("RES:IDENTIFY_SCAN:ERROR:")
+                ? result["RES:IDENTIFY_SCAN:ERROR:".Length..]
+                : result;
+            return BadRequest(new { sucesso = false, mensagem = error });
+        }
+
+        var payload = result["RES:IDENTIFY_SCAN:OK:".Length..];
+        var split = payload.Split(':', 2);
+        if (split.Length < 1 || !int.TryParse(split[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int fingerId))
+            return BadRequest(new { sucesso = false, mensagem = "Resposta biométrica inválida." });
+
+        var voterByFinger = await _svc.GetVoterByFingerAsync(fingerId);
+        if (voterByFinger is null)
+            return BadRequest(new { sucesso = false, mensagem = "Impressão digital não cadastrada." });
+
+        if (!voterByFinger.CanVote || voterByFinger.Vote is not null)
+            return BadRequest(new { sucesso = false, mensagem = "Este eleitor já votou." });
+
+        return Ok(new
+        {
+            sucesso = true,
+            fingerId,
+            nomeEleitor = voterByFinger.Name,
+            mensagem = "Eleitor identificado. Escolha a entidade e confirme o voto."
+        });
+    }
+
+    /// <summary>
     /// Faz a validação inicial por BI + cartão e dispara apenas a leitura biométrica.
     /// Não regista voto nesta etapa.
     /// </summary>

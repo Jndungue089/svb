@@ -15,7 +15,7 @@
                 <VerticalStackLayout Spacing="2">
                     <Label Text="Votação" Style="{StaticResource PageTitle}" />
                     <Label
-                        Text="Identificação, escolha do partido, biometria e confirmação/cancelamento"
+                        Text="Leitura biométrica, escolha da entidade e confirmação do voto"
                         Style="{StaticResource Caption}" />
                 </VerticalStackLayout>
                 <Button
@@ -27,32 +27,10 @@
 
             <Frame Style="{StaticResource CardFrame}">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Fase 1: Identificação" Style="{StaticResource SectionHeader}" />
-
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                        <VerticalStackLayout Spacing="6">
-                            <Label Text="Nº do BI" Style="{StaticResource FieldLabel}" />
-                            <Frame Style="{StaticResource FieldFrame}">
-                                <Entry
-                                    Text="{Binding BiInput}"
-                                    Placeholder="Ex.: 005487329LA042"
-                                    IsEnabled="{Binding IdentificationPassed, Converter={StaticResource InverseBoolConverter}}" />
-                            </Frame>
-                        </VerticalStackLayout>
-
-                        <VerticalStackLayout Grid.Column="1" Spacing="6">
-                            <Label Text="Cartão do eleitor (processo/QR ITEL)" Style="{StaticResource FieldLabel}" />
-                            <Frame Style="{StaticResource FieldFrame}">
-                                <Entry
-                                    Text="{Binding VoterCardInput}"
-                                    Placeholder="Nº processo ou código QR"
-                                    IsEnabled="{Binding IdentificationPassed, Converter={StaticResource InverseBoolConverter}}" />
-                            </Frame>
-                        </VerticalStackLayout>
-                    </Grid>
+                    <Label Text="Fase 1: Identificar Eleitor" Style="{StaticResource SectionHeader}" />
 
                     <Button
-                        Text="Validar Identificação"
+                        Text="Ler impressão digital"
                         Command="{Binding SubmitIdentificationCommand}"
                         IsEnabled="{Binding CanSubmitIdentification}" />
 
@@ -70,7 +48,7 @@
 
             <Frame Style="{StaticResource CardFrame}">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Fase 2: Escolha do Partido" Style="{StaticResource SectionHeader}" />
+                    <Label Text="Fase 2: Escolha da Entidade" Style="{StaticResource SectionHeader}" />
                     <Label Text="{Binding PartyInfoMessage}" Style="{StaticResource Caption}" />
 
                     <CollectionView
@@ -136,12 +114,7 @@
 
             <Frame Style="{StaticResource CardFrame}">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Fase 3: Biometria e decisão" Style="{StaticResource SectionHeader}" />
-
-                    <Button
-                        Text="Ler sensor biométrico"
-                        Command="{Binding StartBiometricCommand}"
-                        IsEnabled="{Binding CanStartBiometric}" />
+                    <Label Text="Fase 3: Confirmar Voto" Style="{StaticResource SectionHeader}" />
 
                     <ActivityIndicator
                         IsVisible="{Binding IsScanning}"
