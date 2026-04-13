@@ -1,5 +1,7 @@
 namespace BeneditaApi.Models;
 
+using System.Text.Json.Serialization;
+
 public class Entity
 {
     public int Id { get; set; }
@@ -13,5 +15,6 @@ public class Entity
     public string? Description { get; set; }
 
     // Navegação
+    [JsonIgnore]
     public ICollection<Vote> Votes { get; set; } = new List<Vote>();
 }

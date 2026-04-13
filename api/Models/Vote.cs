@@ -1,5 +1,7 @@
 namespace BeneditaApi.Models;
 
+using System.Text.Json.Serialization;
+
 public class Vote
 {
     public int Id { get; set; }
@@ -8,6 +10,7 @@ public class Vote
 
     // FK → Voter
     public int VoterId { get; set; }
+    [JsonIgnore]
     public Voter Voter { get; set; } = null!;
 
     // FK → Entity
