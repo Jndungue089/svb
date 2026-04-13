@@ -1,6 +1,7 @@
 using BeneditaApi.Data;
 using BeneditaApi.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +25,12 @@ builder.Services.AddSingleton<SerialHostedService>();
 builder.Services.AddHostedService(p => p.GetRequiredService<SerialHostedService>());
 
 // ── Web API ───────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opt =>
+    {
+        // Evita exceções de serialização com ciclos de navegação do EF Core.
+        opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
