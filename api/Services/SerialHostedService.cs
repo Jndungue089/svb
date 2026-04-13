@@ -423,7 +423,7 @@ public class SerialHostedService : BackgroundService
                 return;
 
             _port.WriteLine(message);
-            _logger.LogDebug("Serial TX: {Message}", message);
+            _logger.LogDebug("Serial TX: {Message}", Sanitize(message));
         }
         LogSerial(message, "Tx");
     }
@@ -437,7 +437,8 @@ public class SerialHostedService : BackgroundService
     private void LogSerial(string text, string direction)
     {
         _logBuffer.Enqueue(new SerialLogEntry(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), text, direction));
-        while (_logBuffer.Count > MaxLogEntries)
+        int excess = _logBuffer.Count - MaxLogEntries;
+        for (int i = 0; i < excess; i++)
             _logBuffer.TryDequeue(out _);
     }
 

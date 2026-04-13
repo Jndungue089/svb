@@ -14,7 +14,9 @@ public partial class SerialLogViewModel : ObservableObject
         AvailablePorts = new();
         SelectedPort   = "COM3";
         Log            = _serial.Log;
-        _ = LoadPortsAsync();
+        _ = LoadPortsAsync().ContinueWith(
+            t => StatusMessage = $"Erro ao carregar portas: {t.Exception?.GetBaseException().Message}",
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     public System.Collections.ObjectModel.ObservableCollection<SerialEntry> Log { get; }

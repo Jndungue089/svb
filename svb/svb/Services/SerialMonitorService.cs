@@ -35,7 +35,8 @@ public class SerialMonitorService : IDisposable
         }
 
         IsOpen = true;
-        _lastPolledUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 2000;
+        // Start 2 seconds back so the connection handshake appears in the log.
+        _lastPolledUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 2_000;
         _cts = new CancellationTokenSource();
         _ = PollLoopAsync(_cts.Token);
 
@@ -109,7 +110,11 @@ public class SerialMonitorService : IDisposable
                 await Task.Delay(250, token);
             }
             catch (OperationCanceledException) { break; }
-            catch { await Task.Delay(500, token); }
+            catch (Exception ex)
+            {
+                AddEntry($"[ERROR] {ex.Message}", SerialDirection.System);
+                await Task.Delay(500, token);
+            }
         }
     }
 
