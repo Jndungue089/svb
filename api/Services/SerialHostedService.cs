@@ -78,7 +78,17 @@ public class SerialHostedService : BackgroundService
             ClosePortUnsafe();
         }
 
-        return (true, $"A ligar em {_desiredPortName} @ {_desiredBaudRate}...");
+        TryEnsureConnection();
+
+        var status = GetStatus();
+        if (status.IsConnected)
+            return (true, $"Conectado em {status.ActivePort} @ {status.BaudRate}.");
+
+        var reason = string.IsNullOrWhiteSpace(status.LastError)
+            ? "Não foi possível abrir a porta serial."
+            : status.LastError;
+
+        return (false, $"Falha ao conectar: {reason}");
     }
 
     public void Disconnect()
@@ -200,10 +210,16 @@ public class SerialHostedService : BackgroundService
                 {
                     ReadTimeout = 200,
                     WriteTimeout = 500,
-                    NewLine = "\n"
+                    NewLine = "\n",
+                    DtrEnable = true,
+                    RtsEnable = false,
+                    Handshake = Handshake.None
                 };
 
                 newPort.Open();
+                newPort.DiscardInBuffer();
+                newPort.DiscardOutBuffer();
+                Thread.Sleep(250);
 
                 lock (_stateLock)
                 {
