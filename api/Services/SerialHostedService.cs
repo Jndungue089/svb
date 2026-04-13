@@ -353,7 +353,7 @@ public class SerialHostedService : BackgroundService
         Send($"CMD:ENROLL:{slot}");
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(90));
 
         try
         {

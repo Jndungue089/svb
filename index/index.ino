@@ -48,6 +48,9 @@
 #define FINGER_CAPTURE_TIMEOUT_MS 20000
 #define LCD_COLS 16
 
+int fingerBaud = 57600;
+bool sensorReady = false;
+
 HardwareSerial fingerSerial(2);
 Adafruit_Fingerprint finger(&fingerSerial);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -153,6 +156,7 @@ const char* fingerCodeName(uint8_t code) {
 int waitFingerImage(uint32_t timeoutMs) {
   unsigned long start = millis();
   uint8_t lastErr = FINGERPRINT_OK;
+  int packetErrCount = 0;
 
   while (millis() - start < timeoutMs) {
     uint8_t p = finger.getImage();
@@ -165,6 +169,10 @@ int waitFingerImage(uint32_t timeoutMs) {
     // Em AS608 podem ocorrer erros transitórios de pacote/imagem; tenta novamente.
     if (p == FINGERPRINT_PACKETRECIEVEERR || p == FINGERPRINT_IMAGEFAIL) {
       lastErr = p;
+      if (p == FINGERPRINT_PACKETRECIEVEERR) {
+        packetErrCount++;
+        if (packetErrCount >= 25) return FINGERPRINT_PACKETRECIEVEERR;
+      }
       delay(80);
       continue;
     }
@@ -173,6 +181,39 @@ int waitFingerImage(uint32_t timeoutMs) {
   }
 
   return (lastErr == FINGERPRINT_OK) ? 0xFF : lastErr;
+}
+
+bool initFingerprintSensor() {
+  const uint32_t baudCandidates[] = {57600, 115200, 38400, 19200, 9600};
+
+  for (uint8_t i = 0; i < sizeof(baudCandidates) / sizeof(baudCandidates[0]); i++) {
+    uint32_t baud = baudCandidates[i];
+    fingerSerial.begin(baud, SERIAL_8N1, RX_FINGER, TX_FINGER);
+    delay(80);
+    finger.begin(baud);
+    delay(80);
+
+    if (finger.verifyPassword()) {
+      fingerBaud = (int)baud;
+      sensorReady = true;
+      return true;
+    }
+  }
+
+  sensorReady = false;
+  return false;
+}
+
+int waitFingerImageWithRecovery(uint32_t timeoutMs) {
+  int p = waitFingerImage(timeoutMs);
+  if (p == FINGERPRINT_PACKETRECIEVEERR) {
+    // Se a comunicação caiu, tenta re-sincronizar sensor/UART e repetir.
+    if (initFingerprintSensor()) {
+      delay(50);
+      p = waitFingerImage(timeoutMs);
+    }
+  }
+  return p;
 }
 
 bool btnPressionado(int pino) {
@@ -251,9 +292,15 @@ int capturarDigital() {
 // ================= ENROLAMENTO =================
 
 void enrolarDigital(int slot) {
+  if (!sensorReady && !initFingerprintSensor()) {
+    Serial.println("RES:ENROLL:ERROR:SENSOR_OFFLINE");
+    lcdMsg("Erro sensor", "AS608 offline");
+    return;
+  }
+
   lcdMsg("Enrolamento", "Coloque o dedo");
 
-  int p = waitFingerImage(FINGER_CAPTURE_TIMEOUT_MS);
+  int p = waitFingerImageWithRecovery(FINGER_CAPTURE_TIMEOUT_MS);
   if (p != FINGERPRINT_OK) {
     if (p == 0xFF) {
       Serial.println("RES:ENROLL:ERROR:IMAGEM_1_TIMEOUT");
@@ -275,7 +322,7 @@ void enrolarDigital(int slot) {
 
   lcdMsg("Coloque outra", "vez o dedo");
 
-  p = waitFingerImage(FINGER_CAPTURE_TIMEOUT_MS);
+  p = waitFingerImageWithRecovery(FINGER_CAPTURE_TIMEOUT_MS);
   if (p != FINGERPRINT_OK) {
     if (p == 0xFF) {
       Serial.println("RES:ENROLL:ERROR:IMAGEM_2_TIMEOUT");
@@ -490,13 +537,12 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
-  fingerSerial.begin(57600, SERIAL_8N1, RX_FINGER, TX_FINGER);
-  finger.begin(57600);
-
-  if (!finger.verifyPassword()) {
+  if (!initFingerprintSensor()) {
     lcdMsg("Erro sensor", "AS608 offline");
     Serial.println("RES:ENROLL:ERROR:SENSOR_OFFLINE");
     delay(2000);
+  } else {
+    Serial.println("RES:SENSOR:OK:BAUD:" + String(fingerBaud));
   }
 
   lcdMsg("Bem-vindo ao SVB", "");
