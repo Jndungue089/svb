@@ -50,6 +50,7 @@
 
 int fingerBaud = 57600;
 bool sensorReady = false;
+unsigned long lastSensorRetryAt = 0;
 
 HardwareSerial fingerSerial(2);
 Adafruit_Fingerprint finger(&fingerSerial);
@@ -132,9 +133,18 @@ void lcdWriteLine(uint8_t row, const String& text) {
 }
 
 void lcdMsg(const String& linha1, const String& linha2 = "") {
+  static String prev1 = "";
+  static String prev2 = "";
+
+  if (linha1 == prev1 && linha2 == prev2) {
+    return;
+  }
+
   lcd.clear();
   lcdWriteLine(0, linha1);
   lcdWriteLine(1, linha2);
+  prev1 = linha1;
+  prev2 = linha2;
 }
 
 const char* fingerCodeName(uint8_t code) {
@@ -188,10 +198,13 @@ bool initFingerprintSensor() {
 
   for (uint8_t i = 0; i < sizeof(baudCandidates) / sizeof(baudCandidates[0]); i++) {
     uint32_t baud = baudCandidates[i];
+
+    fingerSerial.end();
+    delay(50);
     fingerSerial.begin(baud, SERIAL_8N1, RX_FINGER, TX_FINGER);
-    delay(80);
+    delay(180);
     finger.begin(baud);
-    delay(80);
+    delay(180);
 
     if (finger.verifyPassword()) {
       fingerBaud = (int)baud;
@@ -522,6 +535,7 @@ void votarComEntidadePredefinida(int entityID) {
 
 void setup() {
   Serial.begin(115200);
+  delay(500);
 
   pinMode(BTN_NEXT,    INPUT_PULLUP);
   pinMode(BTN_CONFIRM, INPUT_PULLUP);
@@ -537,10 +551,13 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
+  lcdMsg("A iniciar", "sensor...");
+  delay(1200);
+
   if (!initFingerprintSensor()) {
     lcdMsg("Erro sensor", "AS608 offline");
     Serial.println("RES:ENROLL:ERROR:SENSOR_OFFLINE");
-    delay(2000);
+    lastSensorRetryAt = millis();
   } else {
     Serial.println("RES:SENSOR:OK:BAUD:" + String(fingerBaud));
   }
@@ -591,6 +608,22 @@ void loop() {
   }
 
   // Modo votação
+  if (!sensorReady) {
+    lcdMsg("Sensor offline", "Verif. cabos");
+
+    if (millis() - lastSensorRetryAt > 5000UL) {
+      lastSensorRetryAt = millis();
+      if (initFingerprintSensor()) {
+        Serial.println("RES:SENSOR:RECOVERED:BAUD:" + String(fingerBaud));
+        lcdMsg("Sensor OK", "Sistema pronto");
+        delay(1200);
+      }
+    }
+
+    delay(100);
+    return;
+  }
+
   lcdMsg("Coloque o dedo", "");
 
   int fingerID = capturarDigital();
