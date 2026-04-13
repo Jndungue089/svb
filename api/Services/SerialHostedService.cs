@@ -394,6 +394,7 @@ public class SerialHostedService : BackgroundService
             return "RES:IDENTIFY_SCAN:ERROR:PORTA_SERIAL_FECHADA";
 
         _identifyScanTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _logger.LogInformation("IdentifyScan: enviando CMD:IDENTIFY_SCAN");
         Send("CMD:IDENTIFY_SCAN");
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -406,6 +407,7 @@ public class SerialHostedService : BackgroundService
         catch (OperationCanceledException)
         {
             _identifyScanTcs = null;
+            _logger.LogWarning("IdentifyScan: timeout ao aguardar resposta do ESP32.");
             return "RES:IDENTIFY_SCAN:ERROR:TIMEOUT";
         }
     }

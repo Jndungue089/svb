@@ -241,6 +241,10 @@ bool btnPressionado(int pino) {
   return false;
 }
 
+bool comandoSerialPendente() {
+  return Serial.available() > 0;
+}
+
 // ================= SERIAL PROTOCOL =================
 
 String enviarComando(const String& cmd) {
@@ -464,6 +468,8 @@ int seleccionarEntidade() {
   unsigned long inicio = millis();
 
   while (millis() - inicio < 60000UL) {
+    if (comandoSerialPendente()) return -1;
+
     String linha1 = "< " + entidades[idx].sigla + " >";
     lcdMsg(linha1.c_str(), "OK=Votar N=Prox");
 
@@ -471,6 +477,8 @@ int seleccionarEntidade() {
 
     unsigned long t = millis();
     while (millis() - t < 3000) {
+      if (comandoSerialPendente()) return -1;
+
       if (btnPressionado(BTN_CONFIRM)) {
         return entidades[idx].id;
       }
@@ -494,6 +502,8 @@ int seleccionarEntidadeComBotoes() {
     unsigned long inicio = millis();
 
     while (millis() - inicio < 60000UL) {
+      if (comandoSerialPendente()) return -1;
+
       lcdMsg("Escolha partido", "B1 B2 B3");
 
       if (btnPressionado(BTN_PARTY_1)) return entidades[0].id;

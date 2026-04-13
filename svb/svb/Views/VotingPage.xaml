@@ -103,22 +103,6 @@
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
-
-                    <Label
-                        Text="Seleção manual por botões físicos/simplificados"
-                        Style="{StaticResource FieldLabel}" />
-                    <HorizontalStackLayout BindableLayout.ItemsSource="{Binding PartyOptions}" Spacing="8">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="model:VotingPartyOption">
-                                <Button
-                                    Text="{Binding Acronym}"
-                                    Command="{Binding Source={x:Reference VotingRoot}, Path=BindingContext.SelectPartyCommand}"
-                                    CommandParameter="{Binding .}"
-                                    IsEnabled="{Binding IsDisabled, Converter={StaticResource InverseBoolConverter}}"
-                                    WidthRequest="120" />
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Frame>
 

@@ -124,7 +124,7 @@ public partial class VotingViewModel : ObservableObject
         {
             0 => "Nenhum partido configurado. Cadastre 3 entidades para votação.",
             < 3 => $"Foram carregados {PartyOptions.Count} partido(s). O ideal são 3.",
-            _ => "3 partidos disponíveis para seleção por toque ou por botões."
+            _ => "3 partidos disponíveis para seleção."
         };
 
         ResetSessionState(keepIdentificationMessage: false);
