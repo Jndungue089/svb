@@ -103,6 +103,8 @@ public class SerialHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await Task.Yield();
+
         while (!stoppingToken.IsCancellationRequested)
         {
             TryEnsureConnection();
@@ -119,7 +121,7 @@ public class SerialHostedService : BackgroundService
 
             try
             {
-                var line = (await Task.Run(activePort.ReadLine, stoppingToken)).Trim();
+                var line = activePort.ReadLine().Trim();
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
