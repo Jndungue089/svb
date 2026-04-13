@@ -57,12 +57,14 @@ public class VoteController : ControllerBase
     }
 
     /// <summary>
-    /// Identifica o eleitor apenas pela impressão digital.
+    /// Identifica o eleitor pela impressão digital.
+    /// Opcionalmente valida o BI informado contra a digital lida.
     /// Não escolhe entidade nem regista voto nesta etapa.
     /// </summary>
     [HttpPost("identify")]
-    public async Task<IActionResult> Identify(CancellationToken ct)
+    public async Task<IActionResult> Identify([FromBody] IdentifyVoteRequest? req, CancellationToken ct)
     {
+        var bi = (req?.BI ?? string.Empty).Trim();
         var result = await _serial.SendIdentifyScanAsync(ct);
 
         if (!result.StartsWith("RES:IDENTIFY_SCAN:OK:"))
@@ -82,61 +84,8 @@ public class VoteController : ControllerBase
         if (voterByFinger is null)
             return BadRequest(new { sucesso = false, mensagem = "Impressão digital não cadastrada." });
 
-        if (!voterByFinger.CanVote || voterByFinger.Vote is not null)
-            return BadRequest(new { sucesso = false, mensagem = "Este eleitor já votou." });
-
-        return Ok(new
-        {
-            sucesso = true,
-            fingerId,
-            nomeEleitor = voterByFinger.Name,
-            mensagem = "Eleitor identificado. Escolha a entidade e confirme o voto."
-        });
-    }
-
-    /// <summary>
-    /// Faz a validação inicial por BI + cartão e dispara apenas a leitura biométrica.
-    /// Não regista voto nesta etapa.
-    /// </summary>
-    [HttpPost("scan")]
-    public async Task<IActionResult> Scan([FromBody] ScanVoteRequest req, CancellationToken ct)
-    {
-        var bi = (req.BI ?? string.Empty).Trim();
-        var voterCard = (req.VoterCard ?? string.Empty).Trim();
-
-        if (string.IsNullOrWhiteSpace(bi))
-            return BadRequest(new { sucesso = false, mensagem = "Informe o BI do eleitor." });
-
-        if (string.IsNullOrWhiteSpace(voterCard))
-            return BadRequest(new { sucesso = false, mensagem = "Informe o cartão do eleitor (processo/QR)." });
-
-        var voterByBi = await _svc.GetVoterByBiAsync(bi);
-        if (voterByBi is null)
-            return BadRequest(new { sucesso = false, mensagem = "BI não encontrado no cadastro." });
-
-        if (!voterByBi.CanVote || voterByBi.Vote is not null)
-            return BadRequest(new { sucesso = false, mensagem = "Este eleitor já votou." });
-
-        var result = await _serial.SendIdentifyScanAsync(ct);
-
-        if (!result.StartsWith("RES:IDENTIFY_SCAN:OK:"))
-        {
-            var error = result.StartsWith("RES:IDENTIFY_SCAN:ERROR:")
-                ? result["RES:IDENTIFY_SCAN:ERROR:".Length..]
-                : result;
-            return BadRequest(new { sucesso = false, mensagem = error });
-        }
-
-        var payload = result["RES:IDENTIFY_SCAN:OK:".Length..];
-        var split = payload.Split(':', 2);
-        if (split.Length < 2 || !int.TryParse(split[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int fingerId))
-            return BadRequest(new { sucesso = false, mensagem = "Resposta biométrica inválida." });
-
-        var voterByFinger = await _svc.GetVoterByFingerAsync(fingerId);
-        if (voterByFinger is null)
-            return BadRequest(new { sucesso = false, mensagem = "Impressão digital não cadastrada." });
-
-        if (!string.Equals(voterByFinger.BI, voterByBi.BI, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(bi) &&
+            !string.Equals(voterByFinger.BI, bi, StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { sucesso = false, mensagem = "BI informado não corresponde à biometria lida." });
 
         if (!voterByFinger.CanVote || voterByFinger.Vote is not null)
@@ -147,7 +96,7 @@ public class VoteController : ControllerBase
             sucesso = true,
             fingerId,
             nomeEleitor = voterByFinger.Name,
-            mensagem = "Biometria validada. Confirme ou cancele o voto."
+            mensagem = "Eleitor identificado. Escolha a entidade e confirme o voto."
         });
     }
 
@@ -186,5 +135,5 @@ public class VoteController : ControllerBase
 
 public record VoteRequest(int FingerId, int EntityId);
 public record InitiateVoteRequest(int EntityId);
-public record ScanVoteRequest(string BI, string VoterCard);
+public record IdentifyVoteRequest(string? BI);
 public record ConfirmVoteRequest(int FingerId, int EntityId);

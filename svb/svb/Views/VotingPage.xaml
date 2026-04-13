@@ -29,6 +29,16 @@
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Fase 1: Identificar Eleitor" Style="{StaticResource SectionHeader}" />
 
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="BI (opcional)" Style="{StaticResource FieldLabel}" />
+                        <Frame Style="{StaticResource FieldFrame}">
+                            <Entry
+                                Text="{Binding BiInput}"
+                                Placeholder="Se informar BI, será validado com a digital"
+                                IsEnabled="{Binding IdentificationPassed, Converter={StaticResource InverseBoolConverter}}" />
+                        </Frame>
+                    </VerticalStackLayout>
+
                     <Button
                         Text="Ler impressão digital"
                         Command="{Binding SubmitIdentificationCommand}"

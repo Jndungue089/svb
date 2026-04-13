@@ -25,6 +25,9 @@ public partial class VotingViewModel : ObservableObject
     private bool _isScanning;
 
     [ObservableProperty]
+    private string _biInput = string.Empty;
+
+    [ObservableProperty]
     private bool _identificationPassed;
 
     [ObservableProperty]
@@ -80,6 +83,7 @@ public partial class VotingViewModel : ObservableObject
         RaiseComputed();
     }
 
+    partial void OnBiInputChanged(string value) => RaiseComputed();
     partial void OnIsLoadingChanged(bool value) => RaiseComputed();
     partial void OnIsScanningChanged(bool value) => RaiseComputed();
     partial void OnIdentificationPassedChanged(bool value) => RaiseComputed();
@@ -137,7 +141,8 @@ public partial class VotingViewModel : ObservableObject
         IdentificationMessage = "Aguardando leitura da impressão digital...";
         IdentificationMessageColor = Colors.Orange;
 
-        var (ok, message, fingerId, voterName) = await _api.IdentifyVoterAsync();
+        var bi = string.IsNullOrWhiteSpace(BiInput) ? null : BiInput.Trim();
+        var (ok, message, fingerId, voterName) = await _api.IdentifyVoterAsync(bi);
 
         IsScanning = false;
         if (!ok)
@@ -233,6 +238,7 @@ public partial class VotingViewModel : ObservableObject
 
         if (!keepIdentificationMessage)
         {
+            BiInput = string.Empty;
             IdentificationMessage = "Clique em Ler impressão digital para identificar o eleitor.";
             IdentificationMessageColor = Colors.Gray;
         }
