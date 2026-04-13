@@ -1,264 +1,139 @@
 using System.Collections.ObjectModel;
-using System.IO;
-using System.IO.Ports;
-using System.Text;
-#if WINDOWS
-using System.Management;
-using System.Text.RegularExpressions;
-#endif
 
 namespace BeneditaUI.Services;
 
 /// <summary>
-/// Serviço singleton que monitora a porta serial diretamente da UI.
-/// Permite visualizar o protocolo ESP32 ↔ API em tempo real
-/// e também enviar comandos manuais.
+/// Serviço singleton que monitora a comunicação serial indiretamente,
+/// através do backend (API). Não abre a porta serial diretamente —
+/// toda a comunicação com o ESP32 é responsabilidade exclusiva da API.
 /// </summary>
 public class SerialMonitorService : IDisposable
 {
-    private SerialPort? _port;
+    private readonly ApiService _api;
     private CancellationTokenSource? _cts;
-    private readonly StringBuilder _rxBuffer = new();
+    private long _lastPolledUnixMs;
 
     public ObservableCollection<SerialEntry> Log { get; } = new();
 
-    public bool IsOpen => _port?.IsOpen ?? false;
+    public bool IsOpen { get; private set; }
 
-    public event Action<string>? LineReceived;
+    public SerialMonitorService(ApiService api) => _api = api;
 
-    // ── Abrir porta ───────────────────────────────────────────
+    // ── Abrir (conectar via backend) ──────────────────────────
 
-    public (bool Ok, string Error) Open(string portName, int baud = 115200)
+    public async Task<(bool Ok, string Error)> OpenAsync(string portName, int baud = 115200)
     {
-        try
+        await CloseAsync();
+
+        SyncApiUrl();
+        var (ok, message) = await _api.ConnectSerialAsync(portName, baud);
+
+        if (!ok)
         {
-            if (string.IsNullOrWhiteSpace(portName))
-                return (false, "Selecione uma porta COM válida.");
-
-            Close();
-            _port = new SerialPort(portName, baud, Parity.None, 8, StopBits.One)
-            {
-                ReadTimeout  = SerialPort.InfiniteTimeout,
-                WriteTimeout = 500,
-                NewLine      = "\n"
-            };
-            _port.Open();
-            _port.DiscardInBuffer();
-            _port.DiscardOutBuffer();
-            _rxBuffer.Clear();
-
-            _cts = new CancellationTokenSource();
-            _ = ReadLoopAsync(_cts.Token);
-
-            AddEntry($"[CONNECTED] {portName} @ {baud}", SerialDirection.System);
-            return (true, "");
-        }
-        catch (UnauthorizedAccessException)
-        {
-            const string message = "Porta ocupada/permissão negada. Feche Arduino IDE, monitor serial ou backend que esteja usando esta COM e tente novamente.";
             AddEntry($"[ERROR] {message}", SerialDirection.System);
             return (false, message);
         }
-        catch (IOException ex)
-        {
-            var message = $"Falha de E/S ao abrir a porta: {ex.Message}";
-            AddEntry($"[ERROR] {message}", SerialDirection.System);
-            return (false, message);
-        }
-        catch (Exception ex)
-        {
-            AddEntry($"[ERROR] {ex.Message}", SerialDirection.System);
-            return (false, ex.Message);
-        }
+
+        IsOpen = true;
+        _lastPolledUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - 2000;
+        _cts = new CancellationTokenSource();
+        _ = PollLoopAsync(_cts.Token);
+
+        AddEntry($"[CONNECTED] {portName} @ {baud}", SerialDirection.System);
+        return (true, string.Empty);
     }
 
-    // ── Fechar porta ──────────────────────────────────────────
+    // ── Fechar (desconectar via backend) ──────────────────────
 
-    public void Close()
+    public async Task CloseAsync()
     {
-        var wasOpen = _port?.IsOpen ?? false;
+        var wasOpen = IsOpen;
+        IsOpen = false;
 
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;
 
-        try
-        {
-            if (_port is { IsOpen: true })
-                _port.Close();
-        }
-        catch
-        {
-            // Ignora erros de fecho para não derrubar a UI.
-        }
-
-        _port?.Dispose();
-        _port = null;
-        _rxBuffer.Clear();
-
         if (wasOpen)
-            AddEntry("[DISCONNECTED]", SerialDirection.System);
-    }
-
-    // ── Enviar ────────────────────────────────────────────────
-
-    public void Send(string line)
-    {
-        if (_port is { IsOpen: true })
         {
-            _port.WriteLine(line);
-            AddEntry(line, SerialDirection.Tx);
+            SyncApiUrl();
+            await _api.DisconnectSerialAsync();
+            AddEntry("[DISCONNECTED]", SerialDirection.System);
         }
     }
 
-    // ── Loop de leitura ───────────────────────────────────────
+    // ── Enviar comando via backend ────────────────────────────
 
-    private async Task ReadLoopAsync(CancellationToken token)
+    public async Task SendAsync(string line)
     {
-        while (!token.IsCancellationRequested && (_port?.IsOpen ?? false))
+        if (!IsOpen) return;
+        SyncApiUrl();
+        await _api.SendSerialRawAsync(line);
+    }
+
+    // ── Listar portas disponíveis (via backend) ───────────────
+
+    public async Task<string[]> GetAvailablePortsAsync()
+    {
+        SyncApiUrl();
+        var ports = await _api.GetSerialPortsAsync() ?? new List<string>();
+        return ports.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    // ── Loop de polling do log ────────────────────────────────
+
+    private async Task PollLoopAsync(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
         {
             try
             {
-                if (_port is not { IsOpen: true })
-                    break;
-
-                if (_port.BytesToRead == 0)
+                var entries = await _api.GetSerialLogAsync(_lastPolledUnixMs);
+                if (entries is not null)
                 {
-                    await Task.Delay(20, token);
-                    continue;
+                    foreach (var e in entries)
+                    {
+                        var dir = e.Direction switch
+                        {
+                            "Tx"     => SerialDirection.Tx,
+                            "Rx"     => SerialDirection.Rx,
+                            _        => SerialDirection.System
+                        };
+                        var time = DateTimeOffset.FromUnixTimeMilliseconds(e.UnixMs).LocalDateTime;
+                        AddEntry(e.Text, dir, time);
+                        if (e.UnixMs >= _lastPolledUnixMs)
+                            _lastPolledUnixMs = e.UnixMs + 1;
+                    }
                 }
 
-                var chunk = _port.ReadExisting();
-                if (string.IsNullOrEmpty(chunk))
-                {
-                    await Task.Delay(10, token);
-                    continue;
-                }
-
-                _rxBuffer.Append(chunk);
-
-                while (TryExtractLine(out var line))
-                {
-                    if (string.IsNullOrWhiteSpace(line))
-                        continue;
-
-                    AddEntry(line, SerialDirection.Rx);
-                    LineReceived?.Invoke(line);
-                }
+                await Task.Delay(250, token);
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                AddEntry($"[ERROR] {ex.Message}", SerialDirection.System);
-                break;
-            }
+            catch { await Task.Delay(500, token); }
         }
-    }
-
-    private bool TryExtractLine(out string line)
-    {
-        line = string.Empty;
-        if (_rxBuffer.Length == 0)
-            return false;
-
-        for (int i = 0; i < _rxBuffer.Length; i++)
-        {
-            if (_rxBuffer[i] != '\n')
-                continue;
-
-            line = _rxBuffer.ToString(0, i).Trim('\r', '\n', ' ');
-            _rxBuffer.Remove(0, i + 1);
-            return true;
-        }
-
-        return false;
     }
 
     // ── Helper ────────────────────────────────────────────────
 
-    private void AddEntry(string text, SerialDirection dir)
+    private void SyncApiUrl()
     {
-        var entry = new SerialEntry(DateTime.Now, text, dir);
+        var url = Preferences.Get("ApiBaseUrl", "http://localhost:5000/");
+        _api.SetBaseUrl(url);
+    }
+
+    private void AddEntry(string text, SerialDirection dir, DateTime? time = null)
+    {
+        var entry = new SerialEntry(time ?? DateTime.Now, text, dir);
         MainThread.InvokeOnMainThreadAsync(() => Log.Add(entry));
     }
 
-    public void Dispose() => Close();
-
-    // ── Listar portas disponíveis ─────────────────────────────
-    public static string[] AvailablePorts
+    public void Dispose()
     {
-        get
-        {
-            var allPorts = SerialPort.GetPortNames()
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            if (allPorts.Length == 0)
-                return allPorts;
-
-#if WINDOWS
-            try
-            {
-                var likely = GetLikelyEspPorts(allPorts);
-                if (likely.Length > 0)
-                    return likely;
-            }
-            catch
-            {
-                // Em caso de falha no WMI, usa a lista completa sem bloquear a UI.
-            }
-#endif
-
-            return allPorts;
-        }
+        IsOpen = false;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
     }
-
-#if WINDOWS
-    private static string[] GetLikelyEspPorts(string[] allPorts)
-    {
-        var byPort = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var port in allPorts)
-            byPort[port] = string.Empty;
-
-        using var searcher = new ManagementObjectSearcher(
-            "SELECT Caption FROM Win32_PnPEntity WHERE Caption LIKE '%(COM%'");
-
-        foreach (var item in searcher.Get())
-        {
-            var caption = item["Caption"]?.ToString() ?? string.Empty;
-            var match = Regex.Match(caption, @"\((COM\d+)\)", RegexOptions.IgnoreCase);
-            if (!match.Success)
-                continue;
-
-            var com = match.Groups[1].Value;
-            if (byPort.ContainsKey(com))
-                byPort[com] = caption;
-        }
-
-        static bool IsLikelyEspCaption(string caption)
-        {
-            if (string.IsNullOrWhiteSpace(caption))
-                return false;
-
-            var c = caption.ToUpperInvariant();
-            return c.Contains("USB") ||
-                   c.Contains("UART") ||
-                   c.Contains("CH340") ||
-                   c.Contains("CH910") ||
-                   c.Contains("CP210") ||
-                   c.Contains("FTDI") ||
-                   c.Contains("SILICON LABS") ||
-                   c.Contains("ESP32") ||
-                   c.Contains("ESPRESSIF");
-        }
-
-        return byPort
-            .Where(kvp => IsLikelyEspCaption(kvp.Value))
-            .Select(kvp => kvp.Key)
-            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-#endif
 }
 
 public record SerialEntry(DateTime Time, string Text, SerialDirection Direction)

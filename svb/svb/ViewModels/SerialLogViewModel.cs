@@ -11,9 +11,10 @@ public partial class SerialLogViewModel : ObservableObject
     public SerialLogViewModel(SerialMonitorService serial)
     {
         _serial = serial;
-        AvailablePorts = new(SerialMonitorService.AvailablePorts);
-        SelectedPort   = AvailablePorts.FirstOrDefault() ?? "COM3";
+        AvailablePorts = new();
+        SelectedPort   = "COM3";
         Log            = _serial.Log;
+        _ = LoadPortsAsync();
     }
 
     public System.Collections.ObjectModel.ObservableCollection<SerialEntry> Log { get; }
@@ -41,42 +42,43 @@ public partial class SerialLogViewModel : ObservableObject
     // ── Connect / Disconnect ──────────────────────────────────
 
     [RelayCommand]
-    public void Connect()
+    public async Task ConnectAsync()
     {
         if (_serial.IsOpen)
         {
-            _serial.Close();
+            await _serial.CloseAsync();
             IsOpen        = false;
             StatusMessage = "Desconectado";
             return;
         }
 
-        var (ok, err) = _serial.Open(SelectedPort, SelectedBaud);
-        IsOpen        = ok;
+        var (ok, err) = await _serial.OpenAsync(SelectedPort, SelectedBaud);
+        IsOpen        = _serial.IsOpen;
         StatusMessage = ok ? $"Conectado em {SelectedPort}" : $"Erro: {err}";
     }
 
     // ── Send manual command ───────────────────────────────────
 
     [RelayCommand]
-    public void SendCommand()
+    public async Task SendCommandAsync()
     {
-        if (string.IsNullOrWhiteSpace(ManualCommand)) return;
-        _serial.Send(ManualCommand.Trim());
+        if (string.IsNullOrWhiteSpace(ManualCommand) || !_serial.IsOpen) return;
+        await _serial.SendAsync(ManualCommand.Trim());
         ManualCommand = string.Empty;
     }
 
     // ── Ping ─────────────────────────────────────────────────
 
     [RelayCommand]
-    public void Ping() => _serial.Send("CMD:PING");
+    public async Task PingAsync() => await _serial.SendAsync("CMD:PING");
 
     // ── Refresh port list ─────────────────────────────────────
 
     [RelayCommand]
-    public void RefreshPorts()
+    public async Task RefreshPortsAsync()
     {
-        AvailablePorts = new(SerialMonitorService.AvailablePorts);
+        var ports = await _serial.GetAvailablePortsAsync();
+        AvailablePorts = new(ports);
         if (AvailablePorts.Count > 0 && !AvailablePorts.Contains(SelectedPort))
             SelectedPort = AvailablePorts[0];
     }
@@ -85,4 +87,13 @@ public partial class SerialLogViewModel : ObservableObject
 
     [RelayCommand]
     public void ClearLog() => Log.Clear();
+
+    // ── Private helpers ───────────────────────────────────────
+
+    private async Task LoadPortsAsync()
+    {
+        var ports = await _serial.GetAvailablePortsAsync();
+        AvailablePorts = new(ports);
+        SelectedPort   = AvailablePorts.FirstOrDefault() ?? "COM3";
+    }
 }

@@ -32,6 +32,21 @@ public class SerialController : ControllerBase
         _serial.Disconnect();
         return Ok(new { sucesso = true, mensagem = "Porta serial desconectada." });
     }
+
+    [HttpGet("log")]
+    public IActionResult Log([FromQuery] long? since = null)
+        => Ok(_serial.GetLog(since));
+
+    [HttpPost("send")]
+    public IActionResult SendCommand([FromBody] SerialSendRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Command))
+            return BadRequest(new { sucesso = false, mensagem = "Comando vazio." });
+
+        _serial.Send(req.Command.Trim());
+        return Ok(new { sucesso = true, mensagem = "Comando enviado." });
+    }
 }
 
 public record SerialConnectRequest(string PortName, int BaudRate = 115200);
+public record SerialSendRequest(string Command);

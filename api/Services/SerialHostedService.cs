@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Ports;
 using BeneditaApi.Data;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,9 @@ public class SerialHostedService : BackgroundService
     private int _desiredBaudRate;
     private bool _reconnectRequested;
     private string _lastError = string.Empty;
+
+    private readonly ConcurrentQueue<SerialLogEntry> _logBuffer = new();
+    private const int MaxLogEntries = 500;
 
     private TaskCompletionSource<string>? _enrollTcs;
     private TaskCompletionSource<string>? _voteScanTcs;
@@ -126,6 +130,7 @@ public class SerialHostedService : BackgroundService
                     continue;
 
                 _logger.LogDebug("Serial RX: {Line}", line);
+                LogSerial(line, "Rx");
 
                 if (line.StartsWith("RES:ENROLL:"))
                 {
@@ -420,12 +425,28 @@ public class SerialHostedService : BackgroundService
             _port.WriteLine(message);
             _logger.LogDebug("Serial TX: {Message}", message);
         }
+        LogSerial(message, "Tx");
     }
 
     private bool IsConnected()
     {
         lock (_stateLock)
             return _port is { IsOpen: true };
+    }
+
+    private void LogSerial(string text, string direction)
+    {
+        _logBuffer.Enqueue(new SerialLogEntry(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), text, direction));
+        while (_logBuffer.Count > MaxLogEntries)
+            _logBuffer.TryDequeue(out _);
+    }
+
+    public SerialLogEntry[] GetLog(long? sinceUnixMs = null)
+    {
+        var entries = _logBuffer.ToArray();
+        return sinceUnixMs.HasValue
+            ? entries.Where(e => e.UnixMs > sinceUnixMs.Value).ToArray()
+            : entries;
     }
 
     private static string Sanitize(string s) =>
@@ -451,3 +472,4 @@ public class SerialHostedService : BackgroundService
 }
 
 public record SerialStatus(bool IsConnected, string? ActivePort, string? DesiredPort, int BaudRate, string LastError);
+public record SerialLogEntry(long UnixMs, string Text, string Direction);

@@ -241,6 +241,29 @@ public class ApiService
         catch (Exception ex) { return (false, ex.Message); }
     }
 
+    public async Task<List<SerialLogEntryDto>?> GetSerialLogAsync(long? sinceUnixMs = null)
+    {
+        try
+        {
+            var url = sinceUnixMs.HasValue ? $"serial/log?since={sinceUnixMs.Value}" : "serial/log";
+            return await _http.GetFromJsonAsync<List<SerialLogEntryDto>>(url, _json);
+        }
+        catch { return null; }
+    }
+
+    public async Task<(bool Ok, string Message)> SendSerialRawAsync(string command)
+    {
+        try
+        {
+            var res = await _http.PostAsJsonAsync("serial/send", new { command });
+            var body = await res.Content.ReadFromJsonAsync<VoteActionResponse>(_json);
+            return res.IsSuccessStatusCode
+                ? (true, body?.Mensagem ?? "Comando enviado.")
+                : (false, body?.Mensagem ?? $"Erro {(int)res.StatusCode}");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
     // ── Base URL ──────────────────────────────────────────────
 
     public void SetBaseUrl(string url)
@@ -258,3 +281,4 @@ file record VoteInitiateResponse(bool Sucesso, string? NomeEleitor, string? Mens
 file record VoteScanResponse(bool Sucesso, int FingerId, string? NomeEleitor, string? Mensagem);
 file record VoteActionResponse(bool Sucesso, string? Mensagem);
 public record SerialStatusDto(bool IsConnected, string? ActivePort, string? DesiredPort, int BaudRate, string LastError);
+public record SerialLogEntryDto(long UnixMs, string Text, string Direction);
