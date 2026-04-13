@@ -119,7 +119,7 @@ public class SerialHostedService : BackgroundService
 
             try
             {
-                var line = activePort.ReadLine().Trim();
+                var line = (await Task.Run(activePort.ReadLine, stoppingToken)).Trim();
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
