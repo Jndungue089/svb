@@ -45,6 +45,8 @@
 #define LED_ERROR   26
 
 #define API_TIMEOUT 5000
+#define FINGER_CAPTURE_TIMEOUT_MS 20000
+#define LCD_COLS 16
 
 HardwareSerial fingerSerial(2);
 Adafruit_Fingerprint finger(&fingerSerial);
@@ -69,10 +71,108 @@ void piscarLED(int pino, int vezes = 1, int ms = 200) {
   }
 }
 
-void lcdMsg(const char* linha1, const char* linha2 = "") {
+char mapUtf8PairToAscii(uint8_t lead, uint8_t trail) {
+  if (lead == 0xC3) {
+    switch (trail) {
+      case 0xA1: case 0xA0: case 0xA2: case 0xA3: case 0xA4: return 'a'; // a acentuado
+      case 0x81: case 0x80: case 0x82: case 0x83: case 0x84: return 'A';
+      case 0xA7: return 'c'; // c cedilha
+      case 0x87: return 'C';
+      case 0xA9: case 0xAA: case 0xA8: case 0xAB: return 'e';
+      case 0x89: case 0x8A: case 0x88: case 0x8B: return 'E';
+      case 0xAD: case 0xAC: case 0xAE: case 0xAF: return 'i';
+      case 0x8D: case 0x8C: case 0x8E: case 0x8F: return 'I';
+      case 0xB3: case 0xB2: case 0xB4: case 0xB5: case 0xB6: return 'o';
+      case 0x93: case 0x92: case 0x94: case 0x95: case 0x96: return 'O';
+      case 0xBA: case 0xB9: case 0xBB: case 0xBC: return 'u';
+      case 0x9A: case 0x99: case 0x9B: case 0x9C: return 'U';
+      default: return '?';
+    }
+  }
+
+  // Caracteres comuns em nomes/strings sem equivalente no LCD
+  if (lead == 0xE2 && trail == 0x80) return '-';
+
+  return '?';
+}
+
+String toLcdAscii(const String& text) {
+  String out;
+  out.reserve(LCD_COLS);
+
+  for (int i = 0; i < text.length() && out.length() < LCD_COLS; i++) {
+    uint8_t c = (uint8_t)text[i];
+
+    if (c >= 32 && c <= 126) {
+      out += (char)c;
+      continue;
+    }
+
+    if (c == 0xC3 && i + 1 < text.length()) {
+      char mapped = mapUtf8PairToAscii(c, (uint8_t)text[i + 1]);
+      out += mapped;
+      i++;
+      continue;
+    }
+
+    // Descarta bytes UTF-8 restantes sem mapear para evitar lixo no LCD.
+    if ((c & 0xC0) == 0x80) continue;
+  }
+
+  while (out.length() < LCD_COLS) out += ' ';
+  return out;
+}
+
+void lcdWriteLine(uint8_t row, const String& text) {
+  lcd.setCursor(0, row);
+  lcd.print(toLcdAscii(text));
+}
+
+void lcdMsg(const String& linha1, const String& linha2 = "") {
   lcd.clear();
-  lcd.setCursor(0, 0); lcd.print(linha1);
-  lcd.setCursor(0, 1); lcd.print(linha2);
+  lcdWriteLine(0, linha1);
+  lcdWriteLine(1, linha2);
+}
+
+const char* fingerCodeName(uint8_t code) {
+  switch (code) {
+    case FINGERPRINT_OK: return "OK";
+    case FINGERPRINT_PACKETRECIEVEERR: return "PACKET_REC_ERR";
+    case FINGERPRINT_NOFINGER: return "NO_FINGER";
+    case FINGERPRINT_IMAGEFAIL: return "IMAGE_FAIL";
+    case FINGERPRINT_IMAGEMESS: return "IMAGE_MESSY";
+    case FINGERPRINT_FEATUREFAIL: return "FEATURE_FAIL";
+    case FINGERPRINT_INVALIDIMAGE: return "INVALID_IMAGE";
+    case FINGERPRINT_ENROLLMISMATCH: return "ENROLL_MISMATCH";
+    case FINGERPRINT_BADLOCATION: return "BAD_LOCATION";
+    case FINGERPRINT_FLASHERR: return "FLASH_ERROR";
+    default: return "UNKNOWN";
+  }
+}
+
+int waitFingerImage(uint32_t timeoutMs) {
+  unsigned long start = millis();
+  uint8_t lastErr = FINGERPRINT_OK;
+
+  while (millis() - start < timeoutMs) {
+    uint8_t p = finger.getImage();
+    if (p == FINGERPRINT_OK) return FINGERPRINT_OK;
+    if (p == FINGERPRINT_NOFINGER) {
+      delay(30);
+      continue;
+    }
+
+    // Em AS608 podem ocorrer erros transitórios de pacote/imagem; tenta novamente.
+    if (p == FINGERPRINT_PACKETRECIEVEERR || p == FINGERPRINT_IMAGEFAIL) {
+      lastErr = p;
+      delay(80);
+      continue;
+    }
+
+    return p;
+  }
+
+  return (lastErr == FINGERPRINT_OK) ? 0xFF : lastErr;
 }
 
 bool btnPressionado(int pino) {
@@ -153,17 +253,19 @@ int capturarDigital() {
 void enrolarDigital(int slot) {
   lcdMsg("Enrolamento", "Coloque o dedo");
 
-  int p = -1;
-  while (p != FINGERPRINT_OK) {
-    p = finger.getImage();
-    if (p == FINGERPRINT_OK) break;
-    if (p == FINGERPRINT_NOFINGER) continue;
-    Serial.println("RES:ENROLL:ERROR:IMAGEM_1_FALHOU");
+  int p = waitFingerImage(FINGER_CAPTURE_TIMEOUT_MS);
+  if (p != FINGERPRINT_OK) {
+    if (p == 0xFF) {
+      Serial.println("RES:ENROLL:ERROR:IMAGEM_1_TIMEOUT");
+    } else {
+      Serial.println("RES:ENROLL:ERROR:IMAGEM_1_" + String(fingerCodeName((uint8_t)p)));
+    }
     return;
   }
 
-  if (finger.image2Tz(1) != FINGERPRINT_OK) {
-    Serial.println("RES:ENROLL:ERROR:CONVERT_1_FALHOU");
+  uint8_t c1 = finger.image2Tz(1);
+  if (c1 != FINGERPRINT_OK) {
+    Serial.println("RES:ENROLL:ERROR:CONVERT_1_" + String(fingerCodeName(c1)));
     return;
   }
 
@@ -173,17 +275,19 @@ void enrolarDigital(int slot) {
 
   lcdMsg("Coloque outra", "vez o dedo");
 
-  p = -1;
-  while (p != FINGERPRINT_OK) {
-    p = finger.getImage();
-    if (p == FINGERPRINT_OK) break;
-    if (p == FINGERPRINT_NOFINGER) continue;
-    Serial.println("RES:ENROLL:ERROR:IMAGEM_2_FALHOU");
+  p = waitFingerImage(FINGER_CAPTURE_TIMEOUT_MS);
+  if (p != FINGERPRINT_OK) {
+    if (p == 0xFF) {
+      Serial.println("RES:ENROLL:ERROR:IMAGEM_2_TIMEOUT");
+    } else {
+      Serial.println("RES:ENROLL:ERROR:IMAGEM_2_" + String(fingerCodeName((uint8_t)p)));
+    }
     return;
   }
 
-  if (finger.image2Tz(2) != FINGERPRINT_OK) {
-    Serial.println("RES:ENROLL:ERROR:CONVERT_2_FALHOU");
+  uint8_t c2 = finger.image2Tz(2);
+  if (c2 != FINGERPRINT_OK) {
+    Serial.println("RES:ENROLL:ERROR:CONVERT_2_" + String(fingerCodeName(c2)));
     return;
   }
 
@@ -388,6 +492,12 @@ void setup() {
 
   fingerSerial.begin(57600, SERIAL_8N1, RX_FINGER, TX_FINGER);
   finger.begin(57600);
+
+  if (!finger.verifyPassword()) {
+    lcdMsg("Erro sensor", "AS608 offline");
+    Serial.println("RES:ENROLL:ERROR:SENSOR_OFFLINE");
+    delay(2000);
+  }
 
   lcdMsg("Bem-vindo ao SVB", "");
   delay(2000);

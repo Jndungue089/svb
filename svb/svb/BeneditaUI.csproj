@@ -35,9 +35,6 @@
     <!-- Logging -->
     <PackageReference Include="Microsoft.Extensions.Logging.Debug"     Version="10.0.0"   />
 
-    <!-- Serial (Windows) -->
-    <PackageReference Include="System.IO.Ports"                        Version="10.0.0"   />
-    <PackageReference Include="System.Management"                      Version="10.0.0"   />
   </ItemGroup>
 
   <!-- App assets — add your icon/splash/fonts to the Resources folders -->

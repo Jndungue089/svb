@@ -10,7 +10,6 @@ public partial class AppShell : Shell
 
         Routing.RegisterRoute("dashboard", typeof(DashboardPage));
         Routing.RegisterRoute("voters",    typeof(VotersPage));
-        Routing.RegisterRoute("serial",    typeof(SerialLogPage));
         Routing.RegisterRoute("settings",  typeof(SettingsPage));
     }
 }

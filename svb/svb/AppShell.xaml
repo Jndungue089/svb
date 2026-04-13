@@ -76,13 +76,6 @@
         <ShellContent Title="Votação" ContentTemplate="{DataTemplate views:VotingPage}" />
     </FlyoutItem>
 
-    <FlyoutItem Title="Monitor Serial" Route="serial">
-        <FlyoutItem.Icon>
-            <FontImageSource Glyph="📡" FontFamily="OpenSansRegular" Size="18" />
-        </FlyoutItem.Icon>
-        <ShellContent Title="Monitor Serial" ContentTemplate="{DataTemplate views:SerialLogPage}" />
-    </FlyoutItem>
-
     <FlyoutItem Title="Configurações" Route="settings">
         <FlyoutItem.Icon>
             <FontImageSource Glyph="⚙" FontFamily="OpenSansRegular" Size="18" />
