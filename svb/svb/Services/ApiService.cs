@@ -129,7 +129,7 @@ public class ApiService
     {
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(38));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(75));
             var res = await _http.PostAsJsonAsync("vote/identify", new { bi }, cts.Token);
             var body = await res.Content.ReadFromJsonAsync<VoteScanResponse>(_json);
 

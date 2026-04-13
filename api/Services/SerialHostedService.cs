@@ -375,7 +375,7 @@ public class SerialHostedService : BackgroundService
         Send($"CMD:VOTE_SCAN:{entityId}");
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(35));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(70));
 
         try
         {
@@ -397,7 +397,7 @@ public class SerialHostedService : BackgroundService
         Send("CMD:IDENTIFY_SCAN");
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(35));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(70));
 
         try
         {

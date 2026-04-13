@@ -306,6 +306,54 @@ int capturarDigital() {
   return finger.fingerID;
 }
 
+int capturarDigitalComTimeout(uint32_t timeoutMs, String* erroOut = nullptr) {
+  int p = waitFingerImageWithRecovery(timeoutMs);
+  if (p != FINGERPRINT_OK) {
+    if (erroOut != nullptr) {
+      if (p == 0xFF) {
+        *erroOut = "TIMEOUT";
+      } else {
+        *erroOut = String("IMAGEM_") + fingerCodeName((uint8_t)p);
+      }
+    }
+    return -1;
+  }
+
+  uint8_t conv = finger.image2Tz();
+  if (conv != FINGERPRINT_OK) {
+    if (conv == FINGERPRINT_PACKETRECIEVEERR && initFingerprintSensor()) {
+      conv = finger.image2Tz();
+    }
+
+    if (conv != FINGERPRINT_OK) {
+      if (erroOut != nullptr) *erroOut = String("CONVERT_") + fingerCodeName(conv);
+      return -1;
+    }
+  }
+
+  uint8_t search = finger.fingerFastSearch();
+  if (search == FINGERPRINT_OK) {
+    return finger.fingerID;
+  }
+
+  if (search == FINGERPRINT_NOTFOUND) {
+    if (erroOut != nullptr) *erroOut = "DIGITAL_NAO_CADASTRADA";
+    return -2;
+  }
+
+  if (search == FINGERPRINT_PACKETRECIEVEERR && initFingerprintSensor()) {
+    search = finger.fingerFastSearch();
+    if (search == FINGERPRINT_OK) return finger.fingerID;
+    if (search == FINGERPRINT_NOTFOUND) {
+      if (erroOut != nullptr) *erroOut = "DIGITAL_NAO_CADASTRADA";
+      return -2;
+    }
+  }
+
+  if (erroOut != nullptr) *erroOut = String("SEARCH_") + fingerCodeName(search);
+  return -1;
+}
+
 // ================= ENROLAMENTO =================
 
 void enrolarDigital(int slot) {
@@ -482,17 +530,21 @@ void identificarEleitor() {
 
   lcdMsg("Coloque o dedo", "para identificar");
 
-  unsigned long inicio = millis();
-  int fingerID = -1;
-  while (millis() - inicio < 30000UL) {
-    fingerID = capturarDigital();
-    if (fingerID >= 0) break;
-    delay(100);
-  }
+  String erroBio;
+  int fingerID = capturarDigitalComTimeout(45000UL, &erroBio);
 
   if (fingerID < 0) {
-    Serial.println("RES:IDENTIFY_SCAN:ERROR:TIMEOUT");
-    lcdMsg("Tempo esgotado", "");
+    String erro = erroBio.length() > 0 ? erroBio : "TIMEOUT";
+    Serial.println("RES:IDENTIFY_SCAN:ERROR:" + erro);
+
+    if (erro == "DIGITAL_NAO_CADASTRADA") {
+      lcdMsg("Digital nao", "cadastrada");
+    } else if (erro == "TIMEOUT") {
+      lcdMsg("Tempo esgotado", "");
+    } else {
+      lcdMsg("Falha leitura", "digital");
+    }
+
     piscarLED(LED_ERROR, 2, 200);
     return;
   }
@@ -524,19 +576,18 @@ void identificarEleitor() {
 void votarComEntidadePredefinida(int entityID) {
   lcdMsg("Coloque o dedo", "para votar");
 
-  // Aguarda até 30 s para capturar digital
-  unsigned long inicio = millis();
-  int fingerID = -1;
-  while (millis() - inicio < 30000UL) {
-    fingerID = capturarDigital();
-    if (fingerID >= 0) break;
-    delay(100);
-  }
+  String erroBio;
+  int fingerID = capturarDigitalComTimeout(45000UL, &erroBio);
 
   if (fingerID < 0) {
-    lcdMsg("Tempo esgotado", "");
+    if (erroBio == "DIGITAL_NAO_CADASTRADA") {
+      lcdMsg("Digital nao", "cadastrada");
+    } else {
+      lcdMsg("Tempo esgotado", "");
+    }
+
     piscarLED(LED_ERROR, 3, 200);
-    Serial.println("RES:VOTE_SCAN:ERROR:TIMEOUT");
+    Serial.println("RES:VOTE_SCAN:ERROR:" + (erroBio.length() > 0 ? erroBio : "TIMEOUT"));
     delay(2000);
     return;
   }
