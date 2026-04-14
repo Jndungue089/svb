@@ -471,7 +471,7 @@ int seleccionarEntidade() {
     if (comandoSerialPendente()) return -1;
 
     String linha1 = "< " + entidades[idx].sigla + " >";
-    lcdMsg(linha1.c_str(), "OK=Votar N=Prox");
+    lcdMsg(linha1.c_str(), "Escolha painel");
 
     delay(200);
 
@@ -504,7 +504,7 @@ int seleccionarEntidadeComBotoes() {
     while (millis() - inicio < 60000UL) {
       if (comandoSerialPendente()) return -1;
 
-      lcdMsg("Escolha partido", "B1 B2 B3");
+      lcdMsg("Escolha partido", "No painel");
 
       if (btnPressionado(BTN_PARTY_1)) return entidades[0].id;
       if (btnPressionado(BTN_PARTY_2)) return entidades[1].id;
@@ -784,3 +784,4 @@ void loop() {
 
   delay(3000);
 }
+
