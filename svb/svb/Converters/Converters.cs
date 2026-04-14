@@ -14,8 +14,8 @@ public class InverseBoolConverter : IValueConverter
 // ── bool → Color (true=Success green, false=Danger red) ──────
 public class BoolToColorConverter : IValueConverter
 {
-    public Color TrueColor  { get; set; } = Color.FromArgb("#2E7D52");
-    public Color FalseColor { get; set; } = Color.FromArgb("#B53B2A");
+    public Color TrueColor  { get; set; } = Color.FromArgb("#1E90FF");
+    public Color FalseColor { get; set; } = Color.FromArgb("#1D4ED8");
 
     public object Convert(object? v, Type t, object? p, CultureInfo c) =>
         v is bool b && b ? TrueColor : FalseColor;
@@ -58,3 +58,4 @@ public class PercentToProgressConverter : IValueConverter
     public object ConvertBack(object? v, Type t, object? p, CultureInfo c) =>
         throw new NotImplementedException();
 }
+

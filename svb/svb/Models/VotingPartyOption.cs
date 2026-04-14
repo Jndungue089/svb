@@ -18,11 +18,12 @@ public partial class VotingPartyOption : ObservableObject
     private bool _isDisabled;
 
     [ObservableProperty]
-    private Color _cardColor = Color.FromArgb("#FFFFFF");
+    private Color _cardColor = Color.FromArgb("#0F1A33");
 
     [ObservableProperty]
-    private Color _borderColor = Color.FromArgb("#E8DDD0");
+    private Color _borderColor = Color.FromArgb("#24406B");
 
     [ObservableProperty]
-    private Color _titleColor = Color.FromArgb("#2C1810");
+    private Color _titleColor = Color.FromArgb("#FFFFFF");
 }
+

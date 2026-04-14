@@ -74,8 +74,8 @@ public partial class EntitiesViewModel : ObservableObject
     {
         FeedbackMessage = msg;
         FeedbackColor   = isError
-            ? Color.FromArgb("#B53B2A")
-            : Color.FromArgb("#2E7D52");
+            ? Color.FromArgb("#1D4ED8")
+            : Color.FromArgb("#1E90FF");
         HasFeedback = !string.IsNullOrEmpty(msg);
     }
 
@@ -167,3 +167,4 @@ public partial class EntitiesViewModel : ObservableObject
         IsLoading = false;
     }
 }
+

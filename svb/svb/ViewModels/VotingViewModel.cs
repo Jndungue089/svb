@@ -270,22 +270,23 @@ public partial class VotingViewModel : ObservableObject
 
             if (isSelected)
             {
-                option.CardColor = Color.FromArgb("#F5EAE5");
-                option.BorderColor = Color.FromArgb("#6B3A2A");
-                option.TitleColor = Color.FromArgb("#6B3A2A");
+                option.CardColor = Color.FromArgb("#13274A");
+                option.BorderColor = Color.FromArgb("#0A84FF");
+                option.TitleColor = Color.FromArgb("#0A84FF");
             }
             else if (option.IsDisabled)
             {
-                option.CardColor = Color.FromArgb("#F3F3F3");
-                option.BorderColor = Color.FromArgb("#D1D1D1");
-                option.TitleColor = Color.FromArgb("#A3A3A3");
+                option.CardColor = Color.FromArgb("#0C1324");
+                option.BorderColor = Color.FromArgb("#1B3254");
+                option.TitleColor = Color.FromArgb("#8BA9DA");
             }
             else
             {
-                option.CardColor = Color.FromArgb("#FFFFFF");
-                option.BorderColor = Color.FromArgb("#E8DDD0");
-                option.TitleColor = Color.FromArgb("#2C1810");
+                option.CardColor = Color.FromArgb("#0F1A33");
+                option.BorderColor = Color.FromArgb("#24406B");
+                option.TitleColor = Color.FromArgb("#FFFFFF");
             }
         }
     }
 }
+

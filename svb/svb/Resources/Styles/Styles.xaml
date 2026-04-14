@@ -122,7 +122,7 @@
 
     <Style x:Key="SecondaryButton" TargetType="Button">
         <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
-        <Setter Property="TextColor"       Value="{StaticResource Primary}" />
+        <Setter Property="TextColor"       Value="White" />
         <Setter Property="BorderColor"     Value="{StaticResource Primary}" />
         <Setter Property="BorderWidth"     Value="1.5" />
         <Setter Property="CornerRadius"    Value="10" />
@@ -210,3 +210,4 @@
     </Style>
 
 </ResourceDictionary>
+

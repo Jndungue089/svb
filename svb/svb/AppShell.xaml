@@ -7,28 +7,28 @@
     Title="SVB"
     FlyoutBehavior="Flyout"
     FlyoutWidth="240"
-    FlyoutBackgroundColor="#3D2419"
-    ForegroundColor="White"
-    UnselectedColor="White"
+    FlyoutBackgroundColor="{StaticResource SidebarBg}"
+    ForegroundColor="{StaticResource SidebarText}"
+    UnselectedColor="{StaticResource SidebarText}"
     Shell.NavBarIsVisible="True"
     BackgroundColor="{StaticResource Background}">
 
     <Shell.FlyoutHeader>
         <VerticalStackLayout
-            BackgroundColor="#3D2419"
+            BackgroundColor="{StaticResource SidebarBg}"
             Padding="24,32,24,20"
             Spacing="4">
             <Frame
-                BackgroundColor="#5C3728"
+                BackgroundColor="{StaticResource SidebarActive}"
                 CornerRadius="14"
                 Padding="0"
                 WidthRequest="52"
                 HeightRequest="52"
                 HasShadow="False"
-                BorderColor="#7A4A38"
+                BorderColor="{StaticResource Primary}"
                 HorizontalOptions="Start">
                 <Label
-                    Text="🗳"
+                    Text=""
                     FontSize="26"
                     HorizontalOptions="Center"
                     VerticalOptions="Center" />
@@ -44,50 +44,50 @@
                 TextColor="White"
                 FontSize="11"
                 CharacterSpacing="0.5" />
-            <BoxView Color="#5C3728" HeightRequest="1" Margin="0,16,0,0" />
+            <BoxView Color="{StaticResource Border}" HeightRequest="1" Margin="0,16,0,0" />
         </VerticalStackLayout>
     </Shell.FlyoutHeader>
 
     <FlyoutItem Title="Dashboard" Route="dashboard">
         <FlyoutItem.Icon>
-            <FontImageSource Glyph="📊" FontFamily="OpenSansRegular" Size="18" />
+            <FontImageSource Glyph="" FontFamily="OpenSansRegular" Size="18" />
         </FlyoutItem.Icon>
         <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:DashboardPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Eleitores" Route="voters">
         <FlyoutItem.Icon>
-            <FontImageSource Glyph="👥" FontFamily="OpenSansRegular" Size="18" />
+            <FontImageSource Glyph="" FontFamily="OpenSansRegular" Size="18" />
         </FlyoutItem.Icon>
         <ShellContent Title="Eleitores" ContentTemplate="{DataTemplate views:VotersPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Entidades" Route="entities">
         <FlyoutItem.Icon>
-            <FontImageSource Glyph="🏛" FontFamily="OpenSansRegular" Size="18" />
+            <FontImageSource Glyph="" FontFamily="OpenSansRegular" Size="18" />
         </FlyoutItem.Icon>
         <ShellContent Title="Entidades" ContentTemplate="{DataTemplate views:EntitiesPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Votação" Route="voting">
         <FlyoutItem.Icon>
-            <FontImageSource Glyph="🗳" FontFamily="OpenSansRegular" Size="18" />
+            <FontImageSource Glyph="" FontFamily="OpenSansRegular" Size="18" />
         </FlyoutItem.Icon>
         <ShellContent Title="Votação" ContentTemplate="{DataTemplate views:VotingPage}" />
     </FlyoutItem>
 
     <FlyoutItem Title="Configurações" Route="settings">
         <FlyoutItem.Icon>
-            <FontImageSource Glyph="⚙" FontFamily="OpenSansRegular" Size="18" />
+            <FontImageSource Glyph="" FontFamily="OpenSansRegular" Size="18" />
         </FlyoutItem.Icon>
         <ShellContent Title="Configurações" ContentTemplate="{DataTemplate views:SettingsPage}" />
     </FlyoutItem>
 
     <Shell.FlyoutFooter>
-        <VerticalStackLayout BackgroundColor="#3D2419" Padding="24,16">
-            <BoxView Color="#5C3728" HeightRequest="1" Margin="0,0,0,14" />
+        <VerticalStackLayout BackgroundColor="{StaticResource SidebarBg}" Padding="24,16">
+            <BoxView Color="{StaticResource Border}" HeightRequest="1" Margin="0,0,0,14" />
             <Label
-                Text="v2.0  ·  Admin"
+                Text="v2.0    Admin"
                 TextColor="White"
                 FontSize="11"
                 HorizontalOptions="Center" />
